@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { EventWithSeats } from "@/lib/events";
 import { getPublishedEventById } from "@/lib/events";
@@ -37,7 +38,7 @@ function EventDetail({ event }: { event: EventWithSeats }) {
         <p className="text-ink-soft">{event.description}</p>
       ) : null}
 
-      <dl className="grid grid-cols-1 gap-4 rounded-2xl border border-brand-100 bg-white p-5 text-sm sm:grid-cols-2">
+      <dl className="grid grid-cols-1 gap-4 rounded-lg border border-brand-100 bg-white p-5 text-sm sm:grid-cols-2">
         <div className="flex flex-col gap-0.5">
           <dt className="font-semibold text-brand-700">Fecha</dt>
           <dd className="capitalize text-ink">{formatEventDate(event.startsAt)}</dd>
@@ -69,23 +70,30 @@ function EventDetail({ event }: { event: EventWithSeats }) {
       </dl>
 
       {/*
-       * Inert on purpose. Task T5 (reservation form) replaces this button with
-       * the real flow that creates the reservation and shows the transfer
-       * instructions. It is a <button>, not a link, so there is no route to a
-       * page that does not exist yet.
+       * When the event is full the CTA stays a disabled button; otherwise it
+       * links to the reservation form created in T5.
        */}
       <div className="flex flex-col gap-2">
-        <button
-          type="button"
-          disabled
-          className="inline-flex min-h-12 w-full items-center justify-center rounded-full bg-brand-700 px-5 font-semibold text-white disabled:cursor-not-allowed disabled:bg-brand-200 disabled:text-brand-800 sm:w-auto sm:px-8"
-        >
-          {isFull ? "Evento completo" : "Reservar mi lugar"}
-        </button>
+        {isFull ? (
+          <button
+            type="button"
+            disabled
+            className="inline-flex min-h-12 w-full items-center justify-center rounded-md bg-brand-700 px-5 font-semibold text-white disabled:cursor-not-allowed disabled:bg-brand-200 disabled:text-brand-800 sm:w-auto sm:px-8"
+          >
+            Evento completo
+          </button>
+        ) : (
+          <Link
+            href={`/eventos/${event.id}/reservar`}
+            className="inline-flex min-h-12 w-full items-center justify-center rounded-md bg-brand-700 px-5 font-semibold text-white transition-colors hover:bg-brand-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 sm:w-auto sm:px-8"
+          >
+            Reservar mi lugar
+          </Link>
+        )}
         <p className="text-sm text-ink-soft">
           {isFull
             ? "Este evento ya no tiene lugares disponibles."
-            : "La reserva se confirma por transferencia bancaria. Muy pronto vas a poder reservar desde acá."}
+            : "Te guardamos el lugar por 30 minutos para que puedas transferir el pago."}
         </p>
       </div>
     </article>
