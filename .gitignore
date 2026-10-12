@@ -42,3 +42,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# gentle-ai generated skill registry (machine-specific absolute paths, regenerated on demand)
+.atl/
