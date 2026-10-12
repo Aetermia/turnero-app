@@ -93,7 +93,7 @@ Ocupan cupo: `pending_no_receipt`, `pending_review`, `approved`.
 - [x] **T5 Formulario de reserva** — validación Zod, transacción de cupo, creación de reserva pendiente con vencimiento. **Cerrada y verificada**: `npx tsc --noEmit` exit 0, `npm run build` exit 0, y la concurrencia probada de verdad con `scripts/verify-concurrency.mjs` (evento de 1 lugar con 8 intentos simultáneos de correos distintos → 1 aceptada y 7 rechazadas por falta de cupo; evento de 5 lugares con 2 intentos simultáneos del MISMO correo → 1 aceptada y 1 rechazada por reserva duplicada). Eso demuestra R1: el cupo se decide en la base con `SELECT ... FOR UPDATE`, no con un `if` en la aplicación.
 - [x] **T6 Comprobante** — subida a bucket privado, compresión en cliente, datos declarados. **Cerrada**: la foto se sube directo a Supabase con URL firmada (evita el límite de 1 MB del cuerpo de los Server Actions), con compresión previa en el navegador; al enviar, la reserva pasa a `pending_review` y se le limpia el vencimiento (a partir de ahí no se libera sola). `npx tsc --noEmit` exit 0 y `npm run build` exit 0.
 - [x] **T7 Auth admin** — login con usuario y contraseña, cookie de sesión, protección de rutas. **Cerrada y verificada contra el servidor real** (status codes medidos con curl, no deducidos): `/admin/login` sin sesión → 200 (sin bucle de redirección); `/admin` sin sesión → 307 a `/admin/login`; con cookie válida → 200; con cookie **vencida**, **manipulada** o de **otro usuario** → 307. Y el POST real del formulario: contraseña incorrecta → 303 a `?error=credentials` **sin** cookie; contraseña correcta → 303 a `/admin` con `Set-Cookie` `HttpOnly; Secure; SameSite=lax; Max-Age=604800`, y esa cookie emitida sirve para entrar (200). Sin dependencias nuevas: hash `scrypt` con el `crypto` de Node, generador en `scripts/hash-admin-password.mjs` como única fuente de los parámetros, y sesión por cookie firmada con HMAC (sin tabla de sesiones). Falla cerrado: sin variables de entorno no entra nadie.
-- [ ] **T8 CRUD de eventos** — crear, editar, publicar y despublicar desde el panel.
+- [x] **T8 CRUD de eventos** — crear, editar, publicar y despublicar desde el panel. **Cerrada y verificada contra la base real**: `npx tsc --noEmit` exit 0, `npm run build` exit 0, y `scripts/verify-events-admin.mjs` (mismo patrón que `verify-concurrency.mjs`: importa el módulo real `src/lib/events.ts` contra Postgres) pasa sus escenarios con exit 0 y deja la base como estaba. Lo que probó, observado y no deducido: el guard de capacidad **rechaza** `capacity < ocupados` y **acepta** `capacity == ocupados`; una retención `pending_no_receipt` **vencida** no cuenta como ocupada; `cancelled`/`rejected`/`expired` no cuentan; `approved` sí ocupa; despublicar deja la cantidad de reservas intacta; e ids mal formados devuelven `not_found`/`null` sin 500. Sin borrar evento en v1 (FKs `ON DELETE RESTRICT`) y sin imagen (diferida a P9).
 - [ ] **T9 Gestión de reservas** — lista con filtros, ver comprobante, aprobar y rechazar con liberación de cupo.
 - [ ] **T10 Vencimiento y seguimiento** — cálculo de expiración y página pública de estado por token.
 - [ ] **T11 WhatsApp 1 toque** — botón con deep link y mensaje pre-armado.
@@ -101,7 +101,7 @@ Ocupan cupo: `pending_no_receipt`, `pending_review`, `approved`.
 
 ## Estrategia de entrega
 
-- Commit por unidad de trabajo, en la rama de la feature. **El repositorio lo maneja el usuario: el agente no hace commit ni push.**
+- Commit por unidad de trabajo, en la rama de la feature. **El agente commitea por unidad de trabajo de forma autónoma (desde T5 en adelante); publicar (push) y mergear siguen siendo decisión del usuario.**
 - Estimación de líneas escritas para v1: ~2000. Supera ampliamente el umbral de ~400, así que el trabajo se organiza en slices revisables por tarea, no como un PR único.
 
 ## Progreso
@@ -157,3 +157,24 @@ Ocupan cupo: `pending_no_receipt`, `pending_review`, `approved`.
   pantalla de confirmación muestre el dato de pago. Se lee de una variable de
   entorno, así que no bloquea el desarrollo.
 - Pendientes que bloquean tareas: **P4** (cómo se sube el comprobante, por el límite de 1 MB de las Server Actions) bloquea **T6**, y conviene resolverlo antes de llegar. **P2** (página de estado por token) corresponde a **T10**.
+
+### T8 — CRUD de eventos (decisiones y verificación)
+
+- **Alcance:** crear, editar, publicar y despublicar eventos desde el panel. Lista en `/admin/eventos`, alta en `/admin/eventos/nuevo`, edición en `/admin/eventos/[id]`. La UI y las Server Actions viven bajo el route group `(panel)`, que ya exige sesión (layout + proxy).
+- **Sin borrar evento en v1.** Las FKs son `ON DELETE RESTRICT`: borrar un evento con reservas falla en la base. T8 no borra; si hiciera falta, sería una tarea aparte con su propia regla (¿qué pasa con las reservas?).
+- **Imagen del evento: diferida.** La columna `image_url` existe en el schema pero **hoy no se renderiza en ningún lado** del catálogo público. Agregar un campo de URL para una dueña no técnica es peor que no tenerlo. Se registra como **P9** (cómo sube la imagen) y T8 no expone imagen.
+- **Precio como string.** `numeric` nunca pasa por float. El form recibe texto y el schema Zod valida decimal.
+- **Guardia de capacidad (misma familia que R1):** al editar, no se puede bajar `capacity` por debajo de los cupos ya ocupados. El conteo de ocupados va en **SQL** (mismo predicado de cupo que `events.ts`, con el timer de `pending_no_receipt` evaluado en `now()`), no en un `if` de aplicación. Bajar la capacidad dejaría cupos negativos en el catálogo.
+- **Publicar/despublicar** setea `is_published`. Despublicar **no** toca reservas: solo lo saca del catálogo público.
+- **Validación:** un Zod schema por formulario en `src/lib/event-schema.ts`, validado en el servidor. Campos: `title` (req), `theme`, `description`, `location`, `startsAt`/`endsAt` (req, instantes; `endsAt > startsAt`), `capacity` (entero > 0), `price` (decimal > 0), `isPublished`.
+- **Acceso a datos:** se extiende `src/lib/events.ts` (ya existe, hoy solo lectura pública) con las operaciones de administración.
+- **Criterios de aceptación:**
+  (a) no se crea ni edita con datos inválidos (Zod en el servidor, no solo atributos HTML);
+  (b) crear un evento publicado lo hace aparecer en el catálogo público;
+  (c) despublicar lo saca del catálogo **sin** tocar sus reservas;
+  (d) no se puede bajar la capacidad por debajo de los cupos ocupados — probado contra la base real;
+  (e) `npx tsc --noEmit` y `npm run build` limpios.
+- **Verificación:** contra la base/servidor real (filas y status codes), no leyendo archivos.
+- **Ruta de trabajo: delegada.** Escritura: un writer (≥5 archivos nuevos: schema Zod, capa de datos, 3 páginas + actions). Verificación: un verificador **independiente** (contexto fresco) ejecutó `scripts/verify-events-admin.mjs` contra la base real, exit 0, e intentó falsificar el guard en vez de creerle. De paso detectó que el enunciado original del escenario 3 era contradictorio (pedía rechazar `capacity 2` con 1 ocupado, que no está por debajo) y lo corrigió a una violación real.
+- **Evidencia de verificación:** `node scripts/verify-events-admin.mjs` → `RESULT: PASS`, exit 0; `npx tsc --noEmit` exit 0; `npm run build` exit 0. La base quedó con los mismos conteos de filas antes y después (assert en el script).
+- **Estado de la revisión nativa (RDD):** la revisión 4R del slice T5–T7 quedó **bloqueada por un problema de la herramienta** (auth del free tier de OpenCode en las sesiones del review → `provider_failed`), determinista y reproducible. El usuario eligió **deshabilitar RDD en este clon** (`gentle-ai review mode disable --scope clone`) y **abandonar** la transacción congelada. Desde acá T8–T12 avanzan bajo política normal.

@@ -3,9 +3,9 @@
   REGISTRO DE DESARROLLO
 ===============================================================================
 
-Ultima actualizacion : 11/10/2026
+Ultima actualizacion : 12/10/2026
 Estado general       : Etapa 1 (Discovery) CERRADA - Etapa 2 (Base tecnica) EN CURSO
-                       T1, T2, T3 y T4 cerradas y VERIFICADAS contra el sistema real.
+                       T1 a T8 cerradas y VERIFICADAS contra el sistema real.
 
 -------------------------------------------------------------------------------
 1. QUE ES ESTE ARCHIVO
@@ -887,5 +887,106 @@ CONSUMO (T5 + T6 + T7; estimado, +-50%, ver seccion 10)
   cookies validas, vencidas, manipuladas y ajenas costo mas que programar la
   pantalla. Y valio la pena: aparecio que el archivo de variables de entorno
   estaba mal y que el logo nuevo salia deformado.
+
+===============================================================================
+16. T8 - CRUD DE EVENTOS DESDE EL PANEL
+===============================================================================
+
+QUE SE CONSTRUYO
+
+  Alta, edicion, publicacion y despublicacion de eventos desde /admin/eventos.
+  No hay API: todo son Server Actions, y cada una vuelve a comprobar la sesion
+  aunque el layout y el proxy ya la exijan. La validacion vive en
+  src/lib/event-schema.ts (Zod, del lado del servidor).
+
+  Archivos nuevos:
+    src/lib/event-schema.ts                     validacion del formulario
+    src/app/admin/(panel)/eventos/actions.ts     las Server Actions
+    src/app/admin/(panel)/eventos/event-form.tsx
+    src/app/admin/(panel)/eventos/datetime.ts
+    src/app/admin/(panel)/eventos/page.tsx
+    src/app/admin/(panel)/eventos/nuevo/page.tsx
+    src/app/admin/(panel)/eventos/[id]/page.tsx
+    scripts/verify-events-admin.mjs             prueba contra la base real
+  Modificados:
+    src/lib/events.ts                           se le agrego el acceso de admin
+    src/app/admin/(panel)/page.tsx              enlace a la seccion de eventos
+
+DECISIONES QUE CONVIENE ENTENDER
+
+  1. NO SE BORRA UN EVENTO. Las claves foraneas son ON DELETE RESTRICT: si el
+     evento tiene reservas, borrarlo falla en la base. Borrar un evento con
+     reservas no es un detalle tecnico, es una decision de negocio (que pasa
+     con la plata y con la gente anotada), asi que T8 no la toma.
+
+  2. NO SE PUEDE BAJAR LA CAPACIDAD POR DEBAJO DE LOS LUGARES OCUPADOS. Es la
+     misma familia que R1: la cuenta se hace en SQL con el mismo predicado de
+     cupos que usa el catalogo (incluido el timer de pending_no_receipt y el
+     status de cada reserva), no con un "if" en la aplicacion. Una sola
+     sentencia UPDATE con esa condicion, dentro de una transaccion que primero
+     toma el lock de la fila del evento, para que una reserva simultanea no se
+     cuele. Bajar la capacidad a un numero menor que lo vendido mostraria
+     lugares negativos en el catalogo.
+
+  3. LA IMAGEN DEL EVENTO QUEDA PENDIENTE. La columna image_url existe, pero
+     hoy no se dibuja en ningun lado. Ponerle a la dueña un campo de "URL de
+     imagen" es peor que no tenerlo. Queda como P9: como sube la foto.
+
+  4. EL PRECIO SIGUE SIENDO TEXTO. Igual que en el schema: un numeric nunca
+     pasa por float.
+
+  5. LAS FECHAS SE CARGAN EN HORA DE BUENOS AIRES. El navegador manda una hora
+     de reloj (datetime-local, sin zona); el servidor la interpreta como hora
+     argentina y la guarda como instante absoluto. Argentina no tiene horario
+     de verano desde 2009, asi que el desfasaje es fijo (-03:00) y no hace
+     falta una libreria de zonas horarias.
+
+COMO SE VERIFICO (contra la base real, no leyendo archivos)
+
+  scripts/verify-events-admin.mjs corre el modulo REAL src/lib/events.ts contra
+  Postgres, con el mismo truco que verify-concurrency.mjs (Node 24 ejecuta el
+  TypeScript directo y un resolver le enseña el alias "@/"). Resultado: PASS,
+  exit 0. Lo que muerde de verdad:
+
+    - el guard de capacidad RECHAZA capacity < ocupados y ACEPTA capacity ==
+      ocupados (el limite exacto);
+    - una retencion pending_no_receipt VENCIDA no cuenta como ocupada;
+    - cancelled, rejected y expired no cuentan; approved si;
+    - despublicar saca el evento del catalogo SIN tocar sus reservas;
+    - un id mal formado devuelve not_found / null, nunca un 500.
+  El script borra todo lo que crea y compara los conteos de filas de las tres
+  tablas antes y despues: la base queda como estaba.
+
+  Ademas: npx tsc --noEmit exit 0 y npm run build exit 0.
+
+  Honestidad sobre la verificacion: el verificador corre en contexto aparte y
+  su trabajo es intentar ROMPER el codigo, no confirmarlo. Encontro que el
+  enunciado original de uno de los escenarios era contradictorio (pedia
+  rechazar una capacidad que en realidad es valida); lo corrigio y volvio a
+  probar. El codigo, en si, no fallo ningun escenario real.
+
+SOBRE LA REVISION AUTOMATICA (RDD) EN ESTA TAREA
+
+  La revision 4R del bloque T5-T7 quedo BLOQUEADA por la herramienta, no por el
+  codigo: las sesiones de los cuatro revisores fallan con un error de
+  autenticacion del plan gratuito de OpenCode ("free tier can only be used from
+  within OpenCode"), de forma determinista y reproducible. El usuario eligio
+  deshabilitar RDD en este clon (sigue activo a nivel global) y liberar la
+  transaccion congelada. A partir de T8 el trabajo avanza bajo politica normal
+  de verificacion (tsc + build + script contra la base real). Ver la seccion 14
+  para que es RDD.
+
+CONSUMO (T8; estimado, +-50%, ver seccion 10)
+
+  Tokens estimados: ~60k - 90k (lectura de codigo, implementacion por un writer
+  delegado, y verificacion runtime independiente). Participaron big-pickle
+  (orquestador) y dos agentes generales delegados (uno para escribir, otro para
+  verificar). Evaluacion: consumo MEDIO. La verificacion runtime volvio a ser la
+  parte cara, pero es la que prueba que el guard de capacidad muerde.
+
+PENDIENTE QUE DEJA T8
+
+  P9 - Como sube la dueña la imagen del evento (subida a storage, como el
+       comprobante, o un enlace). Hasta resolverlo, los eventos no tienen foto.
 
 ===============================================================================
