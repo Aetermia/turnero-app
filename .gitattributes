@@ -1,0 +1,7 @@
+# Store LF in the repository no matter which OS checks the files out.
+#
+# The app is developed on Windows and deployed on Linux, and without this rule
+# Git rewrites the working copy to CRLF while the repository keeps LF. That
+# mismatch shows up as a change in every file on every diff, which buries the
+# real changes and makes review tooling report work that nobody did.
+* text=auto eol=lf

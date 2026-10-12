@@ -1,0 +1,676 @@
+===============================================================================
+  CASA DE ANTON - SISTEMA DE RESERVAS DE EVENTOS
+  REGISTRO DE DESARROLLO
+===============================================================================
+
+Ultima actualizacion : 11/10/2026
+Estado general       : Etapa 1 (Discovery) CERRADA - Etapa 2 (Base tecnica) EN CURSO
+                       T1, T2, T3 y T4 cerradas y VERIFICADAS contra el sistema real.
+
+-------------------------------------------------------------------------------
+1. QUE ES ESTE ARCHIVO
+-------------------------------------------------------------------------------
+
+Bitacora cronologica del desarrollo. Registra que se hizo, por que, y en que
+estado quedo cada parte. Se actualiza al cerrar cada etapa y cada tarea.
+
+Documento complementario: odd/tasks/sistema-reservas.md (plan detallado de
+tareas, criterios de aceptacion y modelo de datos).
+
+Incluye la seccion 10: consumo de tokens por tarea, modelos que participaron y
+valoracion. Leer la limitacion metodologica de esa seccion antes de sacar
+conclusiones.
+
+Secciones 11 y 12: como esta armada la base local y como recuperar la
+contrasena de postgres si se vuelve a olvidar.
+
+-------------------------------------------------------------------------------
+2. RESUMEN DEL PROYECTO
+-------------------------------------------------------------------------------
+
+Cliente  : Duena de un local que organiza eventos tematicos (pintura,
+           escritura, charlas, etc.). Cada evento dura tipicamente 2 horas.
+Necesidad: Automatizar el flujo de reserva que hoy se hace 1 a 1 por WhatsApp.
+Alcance  : Aplicacion web mobile-first para que los clientes vean eventos
+           proximos, reserven su lugar y paguen por transferencia; y un panel
+           privado donde la duena administra eventos y valida pagos.
+Stack    : Next.js 16.4 + TypeScript + Tailwind v4 + Postgres + Drizzle + Supabase
+Base dev : Postgres 18 LOCAL (ya estaba instalado en la maquina). Supabase queda
+           para el despliegue. Es el mismo motor, asi que el esquema no cambia
+           y no hay que reescribir nada al migrar.
+
+-------------------------------------------------------------------------------
+3. DECISIONES TOMADAS (ETAPA 1 - DISCOVERY)
+-------------------------------------------------------------------------------
+
+3.1 PAGO
+    - Se cobra por TRANSFERENCIA al alias de MercadoLibre del local.
+    - El cliente sube el comprobante (foto o PDF).
+    - La verificacion del pago es 100% MANUAL por la duena.
+    - Se descarto la integracion automatica con MercadoPago (comision).
+    - Se dejo asentado que el comprobante es falsificable: la unica validacion
+      real es la revision humana. Para acelerarla se le piden al cliente los
+      datos declarados de la transferencia (titular, monto, fecha, nro. de
+      operacion). Es una funcion de EFICIENCIA, no de seguridad.
+
+3.2 CUPOS Y ESTADOS
+    - 1 reserva = 1 persona = 1 lugar. Sin acompanantes en el mismo formulario.
+    - Una reserva por persona por evento (dedupe por mail / WhatsApp).
+    - El cupo se retiene AL ENVIAR EL FORMULARIO, no al subir el comprobante.
+      Motivo: si el cupo se toma al final, el ultimo lugar puede perderse
+      despues de que la persona ya transfirio el dinero.
+    - Existen DOS pendientes distintos:
+        * Pendiente SIN comprobante: ocupa cupo y se libera por timer (30 min).
+        * Pendiente CON comprobante: ocupa cupo y NO expira por timer. Solo se
+          libera por decision de la duena (aprobar o rechazar).
+    - La reserva mantiene el lugar retenido hasta que la duena resuelva.
+
+3.3 PRECIO
+    - Todos los eventos tienen precio obligatorio y se paga el TOTAL
+      (no se cobra sena).
+
+3.4 FORMULARIO DE RESERVA
+    - Datos personales: nombre y apellido, email y WhatsApp (los tres
+      obligatorios).
+    - Condiciones o limitantes (OBLIGATORIO responder si / no): celiaquia,
+      diabetes, movilidad reducida, etc. Si la respuesta es "si", se abre un
+      campo de texto para describir cual, y ese texto pasa a ser obligatorio.
+    - Datos declarados de la transferencia: titular, monto, fecha, nro. de
+      operacion.
+    - Adjunto: comprobante (foto o PDF, con limite de tamano).
+    - Checkbox de terminos y condiciones: OBLIGATORIO.
+    - Checkbox "acepto recibir novedades por mail": OPCIONAL y SEPARADO del
+      anterior. Debe ser separado porque un consentimiento de marketing
+      embebido en los terminos no es valido legalmente.
+
+3.5 NOTIFICACIONES
+    - NO se envian emails automaticos al cliente en v1.
+    - WhatsApp automatico: se evaluaron tres caminos.
+        * Cloud API oficial de Meta: automatizable, pero exige verificacion de
+          negocio, un numero aparte y plantillas pre-aprobadas. Tiene costo.
+        * Deep link desde el panel (RECOMENDADO): un boton abre WhatsApp con
+          el mensaje ya escrito y la duena solo aprieta enviar. Gratis.
+        * Librerias no oficiales (Baileys): DESCARTADO. Riesgo de banear el
+          numero del negocio, que es el mismo que sostiene la operacion.
+    - El cliente consulta el estado de su reserva en una pagina publica con
+      link secreto (token). Es el unico canal de seguimiento en v1.
+    - El envio de notificaciones queda encapsulado en un solo modulo, para que
+      migrar de deep link a Cloud API mas adelante no toque otras funciones.
+
+3.6 ADMINISTRACION
+    - Un solo usuario administrador (la duena) con usuario y contrasena y
+      cookie de sesion. Sin OAuth, sin roles, sin multi-tenant.
+
+3.7 LEGAL
+    - Las condiciones de salud son DATOS SENSIBLES segun la Ley 25.326 de
+      Proteccion de Datos Personales. Requieren consentimiento explicito y no
+      pueden usarse para marketing ni compartirse con terceros.
+
+3.8 GIT
+    - El repositorio lo maneja el usuario. El agente NO hace commit ni push.
+
+3.9 BASE DE DATOS EN DESARROLLO (agregado en Etapa 2)
+    - Se descarto crear el proyecto en Supabase en este momento: el pedido fue
+      poder probar el sistema localmente sin depender de una cuenta externa.
+    - La maquina ya tenia PostgreSQL 18 instalado como servicio
+      (postgresql-x64-18). Se decidio usarlo en lugar de instalar algo nuevo.
+    - Por que NO se uso una base embebida tipo PGlite o SQLite: la restriccion
+      R1 (reservar el cupo con transaccion y lock) es justamente lo que hay que
+      probar, y para probar concurrencia real hace falta un motor real con
+      conexiones concurrentes. Una base embebida de una sola conexion daria una
+      falsa sensacion de seguridad en el punto mas delicado del sistema.
+    - Postgres local y Supabase son el MISMO motor: el esquema, la migracion y
+      las consultas sirven igual en los dos. Cambiar de uno a otro es cambiar
+      una variable de entorno, no reescribir codigo.
+    - La aplicacion se conecta con un rol propio (casa_de_anton), nunca con el
+      superusuario postgres.
+
+-------------------------------------------------------------------------------
+4. RESTRICCIONES TECNICAS NO NEGOCIABLES
+-------------------------------------------------------------------------------
+
+    R1. El cupo se reserva con TRANSACCION y lock en la base de datos. Nunca
+        un "if (hay lugar)" en el codigo de aplicacion. Es el bug clasico de
+        los sistemas de reservas: dos personas reservan el ultimo lugar al
+        mismo tiempo y se vende de mas.
+    R2. Los comprobantes viven en almacenamiento PRIVADO y se sirven con URL
+        firmada que expira. Contienen datos personales y datos sensibles.
+    R3. El vencimiento de reservas sin comprobante se calcula en la consulta.
+        Sin cron, sin colas de trabajo, sin Redis.
+    R4. El formulario debe funcionar en celular con red inestable: compresion
+        de imagen en el cliente y reintento visible.
+    R5. Mobile-first real: el formulario corto y la accion principal alcanzable
+        con el pulgar.
+
+-------------------------------------------------------------------------------
+5. REGISTRO CRONOLOGICO
+-------------------------------------------------------------------------------
+
+[11/10/2026] ETAPA 1 - DISCOVERY
+    - Relevamiento de la necesidad con el cliente.
+    - Se definieron el flujo completo de reserva, los estados, el esquema de
+      pago y el alcance de v1.
+    - Se descartaron explicitamente: pago automatico, emails al cliente,
+      envio masivo de promociones, cuentas de cliente y WhatsApp automatico.
+    - Producto de esta etapa: documento de plan en odd/tasks/sistema-reservas.md
+      con 12 tareas (T1 a T12).
+    - Estado: CERRADA.
+
+[11/10/2026] ETAPA 2 - BASE TECNICA
+    - Verificacion del entorno de trabajo:
+        * Node  v24.15.0
+        * npm   11.12.1
+        * git   2.45.1 (disponible; el repositorio lo maneja el usuario)
+    - Generacion del proyecto Next.js.
+    - INCIDENCIA RESUELTA: la carpeta de trabajo se llama PROYECTO_CASA_DE_ANTON
+      y npm prohibe mayusculas en el nombre de un paquete. El generador fallaba
+      al usar ese nombre. Solucion: se genero el proyecto en una subcarpeta con
+      nombre valido (casa-de-anton) y luego se aplano su contenido sobre la
+      raiz. El proyecto quedo con nombre de paquete "casa-de-anton".
+    - Comando utilizado:
+        npx create-next-app@latest casa-de-anton --ts --tailwind --eslint ^
+          --app --src-dir --import-alias "@/*" --use-npm --disable-git --yes
+      Se uso --disable-git a proposito, para no inicializar un repositorio.
+    - Version instalada: Next 16.4.0 / React 19.3.0 / Tailwind v4 / TypeScript 5.
+    - Mapeo de la documentacion oficial de Next 16, delegado a un subagente de
+      solo lectura. Se leyeron 24 documentos. Producto: 8 hallazgos que
+      afectan al proyecto (ver seccion 6).
+    - Estado: CERRADA.
+
+[11/10/2026] T2 - MODELO DE DATOS  (cerrada)
+    - Se eligio base local en vez de Supabase (decision 3.9).
+    - Se relevo lo que ya habia en la maquina: PostgreSQL 18 corriendo como
+      servicio, escuchando en el puerto 5432, con autenticacion por contrasena
+      (scram-sha-256). No habia Docker ni psql en el PATH.
+    - Dependencias instaladas:
+        * drizzle-orm 0.45.4   (ORM)
+        * postgres 3.4.9       (driver, el mismo dialecto que Supabase)
+        * drizzle-kit 0.31.11  (genera y aplica migraciones) - dev
+        * tsx 4.23.15          (corre los scripts en TypeScript) - dev
+    - Se verifico la API REAL de esas versiones leyendo los archivos de tipos
+      instalados, en vez de escribir de memoria. Se confirmo que
+      uniqueIndex(...).where(...) existe: es lo que permite el indice unico
+      parcial, que es la pieza central del modelo.
+    - Archivos escritos:
+        src/db/schema.ts       3 tablas + enum de estados + indices
+        src/db/index.ts        cliente de base (con cache para el hot reload)
+        src/db/seed.ts         datos de prueba (4 eventos, 3 publicados)
+        drizzle.config.ts      configuracion de drizzle-kit
+        .env / .env.example    cadena de conexion
+        scripts/local-db-setup.sql   alta del rol y la base local
+    - Migracion generada: drizzle/0000_lowly_cammi.sql
+      Se leyo el SQL generado COMPLETO y se reviso linea por linea. Era
+      importante: si el indice parcial salia mal, la regla "una reserva activa
+      por persona y evento" no existiria y el sistema cobraria dos veces.
+    - INCIDENCIA: drizzle-kit, cuando falla la conexion, termina con codigo de
+      error pero NO imprime la causa (el spinner se come el mensaje). Hubo que
+      conectar con el driver directo para obtener el error real (28P01:
+      autenticacion fallida). Costo 3 intentos. Queda anotado: cuando
+      drizzle-kit falla en silencio, probar la conexion con el driver.
+    - Estado: CERRADA.
+
+[11/10/2026] RECUPERACION DE LA CONTRASENA DE POSTGRES
+    - Al intentar aplicar la migracion aparecio el bloqueo real: el usuario no
+      recordaba la contrasena del superusuario postgres. Sin ella no se podia
+      crear ni el rol ni la base.
+    - Se evaluaron dos caminos y el usuario eligio arreglar la instalacion
+      existente en vez de crear un segundo Postgres solo para el proyecto.
+    - Lo que hacia posible el arreglo: aunque el agente NO es administrador,
+      SI tenia permiso de escritura sobre la carpeta de datos
+      (E:\PostgresSQL\data). Eso alcanza para editar pg_hba.conf.
+    - Lo que NO se podia hacer sin administrador: recargar la configuracion.
+      El servicio corre como NT AUTHORITY\NetworkService, y pg_ctl reload
+      fallaba con "Operation not permitted". Ese fue el unico paso que tuvo que
+      hacer el usuario: una recarga desde una consola elevada.
+    - Procedimiento ejecutado (queda documentado en la seccion 12):
+        1. Copia de seguridad de pg_hba.conf.
+        2. Cambio temporal de scram-sha-256 a trust, SOLO en las lineas de
+           loopback (127.0.0.1 y ::1). Se verifico que NO quedaran reglas para
+           conexiones remotas: desde la red el servidor ya rechazaba y siguio
+           rechazando.
+        3. El usuario recargo la configuracion desde una consola elevada.
+        4. Se creo el rol casa_de_anton y la base casa_de_anton.
+        5. Se le puso a postgres una contrasena nueva: postgres_dev_2026.
+        6. Se restauro pg_hba.conf desde la copia de seguridad.
+    - COMPORTAMIENTO OBSERVADO Y NO EXPLICADO: al restaurar el archivo, el
+      servidor YA estaba pidiendo contrasena otra vez, antes de que se pudiera
+      ejecutar una recarga (que ademas el agente no puede hacer). No se pudo
+      determinar el mecanismo. Lo que si quedo VERIFICADO es el estado final:
+      una conexion sin contrasena es rechazada. Se deja anotado como rareza del
+      entorno, no como algo resuelto.
+    - Riesgo aceptado y acotado: la ventana sin contrasena duro menos de un
+      minuto, afecto solo a conexiones desde la propia maquina, y se cerro con
+      verificacion explicita.
+    - Estado: RESUELTO.
+
+[11/10/2026] T3 - CONEXION Y SEED  (cerrada)
+    - Migracion aplicada contra la base real: "migrations applied successfully".
+    - Comprobado consultando la base (no el archivo de migracion):
+        * Tablas: customers, events, reservations
+        * Indices: los 7, incluido reservations_active_per_person_unique
+        * Eventos cargados: 4 (3 publicados + 1 borrador)
+    - PRUEBA DE R1 (scripts/verify-constraints.sql). Es la prueba que importa,
+      porque R1 es la restriccion mas critica de todo el sistema. Resultado
+      observado:
+        * La primera reserva activa entra.
+        * La SEGUNDA reserva activa de la misma persona y evento es RECHAZADA
+          por la base con: "llave duplicada viola restriccion de unicidad
+          reservations_active_per_person_unique". Ese error es el exito.
+        * Al rechazar la dueña la primera reserva, la persona PUEDE volver a
+          reservar. La rechazada no bloquea.
+      Es decir: no es que el indice exista. Es que muerde.
+    - Estado: CERRADA.
+
+[11/10/2026] T4 - CATALOGO PUBLICO  (cerrada)
+    - IDENTIDAD VISUAL. El logo del local llego como logo.webp (1024x768, 41 KB,
+      sin transparencia). El agente NO puede ver imagenes, asi que en vez de
+      mirarlo le extrajo los datos con codigo (sharp ya estaba instalado):
+        * fondo crema #FCF8F5, que ocupa el 91% de la imagen
+        * el color con color real es AZUL, tono 223 (indigo): 97.4%
+        * cian (azul marino): 0%  -  rosa/magenta: 1.3% (ruido de bordes)
+      Conclusión: el logo NO tiene ni azul marino ni rosa, aunque el pedido del
+      cliente decia "azul, blanco, rosa". Decision tomada: se usa el azul REAL
+      del logo como color principal, para que la interfaz combine con la marca,
+      y se agrega el rosa mediterraneo como color de ACENTO. Los valores del
+      azul y del crema quedaron muestreados del logo, no inventados.
+      Si el cliente quiere un azul mas "mar", se cambia en un solo archivo.
+    - Tipografia: Montserrat, cargada con next/font. Se AUTOALOJA: el navegador
+      del cliente no le pide la fuente a Google.
+    - Decision de alcance: T4 incluye tambien la pagina de detalle del evento
+      (/eventos/<id>). Un catalogo cuyas tarjetas no llevan a ningun lado no es
+      software que funcione.
+    - DECISION TECNICA IMPORTANTE (R3): el conteo de lugares libres se calcula
+      en la MISMA consulta que lee el evento, con la expiracion evaluada en SQL
+      (now()). NO se reutiliza la lista estatica OCCUPYING_STATUSES del esquema:
+      esa lista no puede expresar el timer, y una reserva abandonada haria
+      encoger el cupo disponible para siempre.
+    - Nada se cachea. Con cacheComponents el cacheo es opt-in: un conteo de
+      cupos cacheado venderia lugares que ya no estan.
+    - Verificado contra el servidor real (no en teoria):
+        * tsc limpio, build limpio
+        * el catalogo muestra los 3 eventos publicados y NO el borrador
+        * se inserto una reserva real y los lugares libres bajaron de 12 a 11
+        * una reserva VENCIDA no descuenta: la expiracion funciona
+        * el detalle de un evento publicado responde bien
+        * el borrador no aparece en el cuerpo de ninguna respuesta
+    - INCIDENCIA CONOCIDA Y ACEPTADA (ver P6): el detalle de un evento borrador
+      o inexistente responde HTTP 200 con la pantalla de "no encontrado" en vez
+      de 404. NO es un bug del codigo: es comportamiento documentado de Next 16
+      cuando la ruta tiene cascara estatica, porque la respuesta empieza a
+      transmitirse antes de que el codigo pueda decidir el estado. Lo que
+      importa esta bien: el borrador NO se filtra y la respuesta va noindex.
+    - Estado: CERRADA.
+
+-------------------------------------------------------------------------------
+6. HALLAZGOS DE NEXT 16 (MAPEO DE DOCUMENTACION)
+-------------------------------------------------------------------------------
+
+El proyecto genero un archivo AGENTS.md que advierte que Next 16 tiene CAMBIOS
+ROMPIENTES respecto de versiones anteriores y exige leer la documentacion
+incluida en node_modules/next/dist/docs/ antes de escribir codigo. Se mapeo esa
+documentacion. Hallazgos que afectan directamente a este proyecto:
+
+    H1. cacheComponents ya viene ACTIVADO por defecto en este scaffold
+        (next.config.ts). Consecuencia: los datos se buscan de forma dinamica
+        por defecto y el cacheo es OPT-IN, declarandolo con la directiva
+        'use cache'. Es el cambio mas grande respecto de lo conocido y la
+        fuente mas probable de un bug sutil.
+
+    H2. cookies(), headers(), params y searchParams son PROMESAS. Hay que
+        hacerles await. El acceso sincrono ya no existe.
+
+    H3. middleware.ts esta DEPRECADO y renombrado a proxy.ts, y corre solo en
+        runtime Node (no edge).
+
+    H4. revalidateTag ahora exige un segundo argumento (perfil de cacheLife).
+        Se agregan updateTag y refresh, exclusivos de Server Actions.
+
+    H5. LIMITE QUE AFECTA NUESTRO CASO: el cuerpo de una Server Action esta
+        limitado a 1 MB por defecto. Una foto de celular pesa entre 3 y 8 MB,
+        asi que el comprobante NO se puede subir por una Server Action sin
+        ampliar ese limite. Decision pendiente para la tarea T6 (ver P4).
+
+    H6. redirect() lanza una excepcion interna: no debe llamarse dentro de un
+        try/catch.
+
+    H7. next lint fue removido y el build ya no corre linting automaticamente.
+
+    H8. Node.js 20.9+ y TypeScript 5.1+ son obligatorios. El entorno cumple.
+
+REGLA OPERATIVA FIJADA: no se escribe codigo de aplicacion basandose en memoria
+de versiones anteriores de Next. Se consulta la documentacion local del paquete.
+
+-------------------------------------------------------------------------------
+7. ESTADO DEL PLAN
+-------------------------------------------------------------------------------
+
+    [X] T1  Bootstrap                      CERRADA (proyecto generado)
+    [X] T2  Modelo de datos                CERRADA (schema + migracion)
+    [X] T3  Conexion y datos de prueba     CERRADA (migracion + seed verificados)
+    [X] T4  Catalogo publico de eventos    CERRADA (catalogo + detalle verificados)
+    [ ] T5  Formulario de reserva
+    [ ] T6  Subida de comprobante          DEPENDE de la decision P4
+    [ ] T7  Login del panel admin
+    [ ] T8  CRUD de eventos
+    [ ] T9  Gestion de reservas (aprobar / rechazar)
+    [ ] T10 Vencimiento y pagina de seguimiento
+    [ ] T11 Boton de WhatsApp en un toque
+    [ ] T12 Listado de clientes
+
+-------------------------------------------------------------------------------
+8. PENDIENTES Y BLOQUEOS
+-------------------------------------------------------------------------------
+
+    P1. RESUELTO. Ya no hace falta Supabase para avanzar: T2 y T3 se
+        desbloquearon con Postgres 18 local (decision 3.9).
+
+    P1b. RESUELTO. Rol y base creados, migracion aplicada, seed cargado y R1
+        verificado contra la base real.
+
+    P2. Definir si la pagina de seguimiento por token entra en v1. Recomendado
+        que si, porque sin emails es el unico canal que tiene el cliente para
+        saber si su reserva fue aprobada.
+
+    P3. Definir si se notifica tambien el RECHAZO de una reserva. Ojo: cuando
+        se rechaza, el dinero ya fue transferido y hay que devolverlo. No es
+        solo un cambio de estado.
+
+    P4. Definir COMO se sube el comprobante, dado el hallazgo H5 (limite de
+        1 MB en Server Actions). BLOQUEA T6.
+          Opcion A: ampliar el limite del cuerpo de la Server Action. Simple,
+                    pero el archivo pasa por nuestro servidor.
+          Opcion B: subida directa desde el celular al almacenamiento con una
+                    URL firmada. Mas robusto en red movil, no consume recursos
+                    del servidor. Es la practica recomendada.
+        Recomendacion: Opcion B. Pendiente de confirmar con el usuario antes de
+        empezar T6.
+
+    P5. RESUELTO. Llego el logo (logo.webp) y se definio la identidad visual:
+        azul del logo + rosa mediterraneo de acento + crema #FCF8F5 + Montserrat.
+        Detalle en la entrada T4 de la seccion 5.
+
+    P6. EL 404 DURO NO ESTA (decision tomada, revisable). El detalle de un evento
+        borrador o inexistente responde 200 con pantalla de "no encontrado".
+        Consecuencia real: NINGUNA. El borrador no se filtra y la respuesta va
+        marcada noindex, asi que no aparece en buscadores. Arreglarlo exige una
+        verificacion en Proxy (un archivo nuevo) que agrega UNA CONSULTA A LA
+        BASE POR CADA VISITA al detalle, y ademas duplica en dos lugares la
+        regla de "que eventos son publicos", que es la clase de duplicacion que
+        despues se desincroniza. Se decidio NO pagar ese costo por una URL con
+        uuid que nadie escribe a mano. Si algun dia importa (monitoreo o
+        analitica que distingan 404 reales), se agrega Proxy y listo.
+
+-------------------------------------------------------------------------------
+9. ESTRUCTURA ACTUAL DEL PROYECTO
+-------------------------------------------------------------------------------
+
+    odd/tasks/sistema-reservas.md   Plan de trabajo
+    PROGRESO.txt                    Este archivo
+    drizzle.config.ts               Configuracion de drizzle-kit
+    drizzle/0000_lowly_cammi.sql    Migracion inicial (revisada a mano)
+    scripts/local-db-setup.sql      Alta del rol y la base local
+    scripts/verify-constraints.sql  Prueba de R1 (se puede correr siempre)
+    .env                            Cadena de conexion (NO se sube al repo)
+    .env.example                    Plantilla de .env (esta si se sube)
+    src/db/schema.ts                Tablas, enum de estados e indices
+    src/db/index.ts                 Cliente de base de datos
+    src/db/seed.ts                  Datos de prueba
+    src/lib/events.ts               Consultas publicas (cupos reales, sin cache)
+    src/lib/format.ts               Formato de fecha y moneda (es-AR)
+    src/components/event-card.tsx   Tarjeta de evento
+    src/app/layout.tsx              Layout raiz: Montserrat, encabezado, pie
+    src/app/page.tsx                Catalogo publico de eventos
+    src/app/eventos/[id]/page.tsx   Detalle del evento
+    src/app/globals.css             Identidad visual (paleta y tipografia)
+    public/logo.webp                Logo del local (1024x768)
+    package.json                    Dependencias y scripts
+    next.config.ts                  Configuracion de Next (cacheComponents activo)
+    AGENTS.md                       Aviso de cambios rompientes de Next 16
+
+    Scripts de npm disponibles:
+        npm run dev            levanta la aplicacion
+        npm run db:generate    genera una migracion a partir del schema
+        npm run db:migrate     aplica las migraciones pendientes
+        npm run db:seed        carga los eventos de prueba
+        npm run db:studio      explorador visual de la base
+
+    Nota: los archivos generados por create-next-app (layout, page, globals)
+    son provisorios y se reemplazan cuando se construya el catalogo publico.
+
+-------------------------------------------------------------------------------
+10. CONSUMO POR TAREA (ESTIMADO)
+-------------------------------------------------------------------------------
+
+LIMITACION IMPORTANTE - LEER ANTES DE USAR ESTOS NUMEROS:
+No existe telemetria de tokens disponible para el agente. No hay ninguna
+herramienta que devuelva el consumo real de la sesion. Por lo tanto estos
+numeros son ESTIMADOS, NO MEDIDOS.
+
+METODO:
+  Se toman los bytes de entrada y salida de cada herramienta que efectivamente
+  entro en el contexto del orquestador y se dividen por 4 (aproximacion
+  habitual de caracteres por token para texto mixto espanol / ingles / codigo).
+  Los valores son ORDENES DE MAGNITUD, con un margen de error estimado de
+  +/- 50%. No deben usarse para facturacion ni para comparaciones finas.
+
+LO QUE NO SE PUEDE MEDIR (PUNTO CIEGO):
+  - El consumo interno de los subagentes. Cuando una tarea se delega, el
+    subagente lee archivos dentro de su propia sesion y ese consumo no es
+    visible desde afuera. Solo se ve su respuesta final.
+  - El razonamiento interno del modelo.
+
+MODELOS CONFIGURADOS EN ESTE ENTORNO (dato real, leido de la configuracion):
+  - Orquestador .................... opencode/big-pickle
+  - Subagente de exploracion ....... opencode/mimo-v2.6-flash-free
+  - Subagente de verificacion ...... opencode/space-bunny-free
+  - Subagente de implementacion .... opencode/big-pickle
+
+TABLA:
+
+  ID  Tarea                  Tokens est.    Modelo(s)               Valoracion
+  ---- ---------------------- -------------- ----------------------- -----------
+  E1  Discovery              ~6k - 10k      big-pickle              BAJO
+      Relevamiento y decisiones de producto. El costo es casi todo texto de
+      conversacion, no herramientas. Consumo esperable y sano.
+
+  T1  Bootstrap              ~20k - 25k     big-pickle (orquesta)   ALTO
+                                            mimo-v2.6-flash-free    (evitable en parte)
+      Generacion del proyecto y verificacion de entorno. El trabajo real
+      (generar el proyecto) es barato.
+      DESPERDICIO DETECTADO: se ejecuto un listado recursivo SIN FILTRO de la
+      carpeta de documentacion de Next, que volco 516 lineas / 55 KB
+      (~13k tokens) para despues quedar truncado. Un listado solo con nombres
+      de carpeta habria costado alrededor de una decima parte. Error propio
+      del agente, no del flujo de trabajo.
+
+  M1  Mapeo de la              ~2k visibles  mimo-v2.6-flash-free   NO MEDIBLE
+      documentacion Next 16
+      Tarea delegada a un subagente de solo lectura que leyo 24 documentos. Su
+      respuesta final costo ~2k tokens en el contexto del orquestador, pero su
+      lectura interna NO es medible desde aca. Es el punto ciego mas grande
+      del proyecto hasta ahora. El valor obtenido (8 hallazgos, uno de ellos
+      bloqueante para la tarea T6) justifica ampliamente el costo, que ademas
+      se pago en un modelo barato.
+
+  B1  Bitacora y medicion    ~11k           big-pickle              MEDIO
+      Incluye la lectura de la configuracion global de OpenCode (~7.5k tokens)
+      para reportar los IDs de modelo REALES en lugar de adivinarlos.
+
+  T2  Modelo de datos        ~25k - 35k     big-pickle              MEDIO
+      Incluye: relevamiento de que motor habia en la maquina (Docker, psql,
+      servicio, pg_hba.conf, puerto), instalacion de 4 dependencias,
+      verificacion de la API real de Drizzle leyendo los tipos instalados,
+      escritura de 7 archivos, generacion y REVISION del SQL, tsc, y prueba de
+      conexion contra el servidor.
+      DONDE SE FUE EL COSTO DE MAS (evitable):
+        * 3 intentos para ver el error real de drizzle-kit, que no lo imprime.
+        * 1 intento perdido por comillas de PowerShell al pasar codigo a node -e.
+      LO QUE VALIO LA PENA:
+        * Leer el SQL generado antes de aplicarlo. Es lo que confirma que el
+          indice parcial (la regla de negocio mas importante del sistema) quedo
+          bien. Barato y de alto valor.
+        * Verificar la API de Drizzle en los tipos instalados en vez de
+          escribir de memoria. Evito reescribir el schema.
+
+  T3  Conexion, alta de la   ~25k - 35k     big-pickle              MEDIO
+      base y verificacion de R1
+      Incluye: el diagnostico del bloqueo (permisos, cuenta del servicio,
+      intento fallido de recarga), la edicion y restauracion de pg_hba.conf,
+      la creacion del rol y la base, el cambio de contrasena de postgres, la
+      migracion, el seed y la prueba de R1.
+      DONDE SE FUE EL COSTO DE MAS (evitable):
+        * 1 intento perdido por usar $env:TEMP en lugar de la ruta real.
+        * La verificacion extra motivada por el comportamiento no explicado de
+          pg_hba.conf, que obligo a comprobar el estado final por separado.
+      LO QUE VALIO LA PENA:
+        * NO haber aceptado "la migracion se aplico" como prueba. Se consulto
+          la base para ver tablas, indices y filas, y despues se hizo fallar a
+          proposito la segunda reserva. Esa prueba es la que convierte "deberia
+          funcionar" en "funciona".
+        * Haber restaurado y verificado la seguridad del servidor en el mismo
+          paso, sin dejarlo abierto.
+
+  T4  Catalogo publico       ~45k - 60k     big-pickle (orquesta)   ALTO
+                                            general (implementa)
+      Primera interfaz del proyecto: identidad visual, consulta de cupos y dos
+      paginas nuevas. La mayor parte del costo NO fue escribir la interfaz, fue
+      VERIFICAR una afirmacion del subagente.
+      LO QUE VALIO LA PENA:
+        * No aceptar "el 404 no se puede" como respuesta. Se midio con curl el
+          codigo HTTP real de 5 URLs y se leyeron 3 documentos de Next 16 hasta
+          confirmar que ese 200 es comportamiento documentado, no un error. Eso
+          convirtio una duda en una decision fundada (P6).
+        * La identidad visual no se invento: se le extrajeron los colores al
+          logo con sharp. Leer el archivo con codigo fue mas barato y mas
+          preciso que mirarlo a ojo.
+      DONDE SE FUE EL COSTO DE MAS (evitable):
+        * 1 busqueda de documentacion mal hecha: se uso Select-String de
+          PowerShell con '**', que NO recursa como en bash. Devolvio "sin
+          resultados" y por un momento parecio que el subagente habia citado
+          mal la documentacion.
+        * 1 intento perdido por correr un script desde %TEMP%: desde ahi no se
+          resuelve sharp del proyecto.
+      VALORACION: ALTO por las dos vueltas perdidas, aunque lo entregado es
+      correcto y esta verificado con evidencia real.
+
+TOTAL ESTIMADO HASTA AHORA: ~150k - 205k tokens en el contexto del orquestador,
+mas un consumo no medido de los subagentes.
+
+LECTURA GENERAL:
+El consumo alto de T1 no vino del trabajo real sino de DOS lecturas grandes: el
+listado sin filtro y la documentacion. La documentacion era necesaria; el
+listado no. Leccion aplicada desde ahora: filtrar la salida de los comandos de
+shell desde el primer intento, y delegar toda lectura extensa en lugar de
+traerla al contexto del orquestador.
+En T2 y T3 el patron se repitio pero por otra causa: no fue leer de mas, fue el
+ida y vuelta de descubrir el estado real de la maquina y de pelear con
+mensajes de error que no aparecen. La leccion que queda: verificar el entorno
+con el minimo de comandos posible, y anotar los comportamientos raros de las
+herramientas para no volver a pisarlos.
+PATRON A VIGILAR DE ACA EN ADELANTE: casi todo el costo de T2 y T3 fue
+INVESTIGACION DE ENTORNO, no construccion del producto. Es esperable y esta
+bien que haya sido asi, porque era la base. Pero si el mismo patron se repite
+en T4, T5 y T6, significa que algo se esta haciendo mal: construir el catalogo
+no deberia costar descubrir como funciona la maquina.
+ACTUALIZACION DESPUES DE T4: el patron NO se repitio (ya no hubo que descubrir
+el entorno), pero T4 costo igual de caro por otro motivo: VERIFICAR una
+afirmacion del subagente, que ademas resulto cierta. Es gasto legitimo, pero
+conviene tenerlo presente: verificar bien cuesta casi lo mismo que construir.
+
+CRITERIOS DE VALORACION:
+  BAJO  = el costo corresponde a lo producido.
+  MEDIO = hay margen de ahorro en alguna lectura accesoria.
+  ALTO  = hubo desperdicio evitable o una lectura desproporcionada.
+  NO MEDIBLE = no hay visibilidad del consumo (caso de los subagentes).
+
+-------------------------------------------------------------------------------
+11. BASE DE DATOS LOCAL - ESTADO Y USO
+-------------------------------------------------------------------------------
+
+ESTADO: funcionando y verificado.
+
+  Servidor : PostgreSQL 18.6, el servicio postgresql-x64-18 que ya estaba
+             instalado. Escucha en el puerto 5432.
+  Base     : casa_de_anton
+  Rol app  : casa_de_anton  (la aplicacion usa este, nunca el superusuario)
+  Datos    : 3 tablas y 4 eventos de prueba cargados
+
+  Todo esto esta listo. No hay que volver a correr el alta.
+
+CREDENCIALES
+
+  - Rol de la aplicacion: la contrasena esta en el archivo .env, junto con la
+    cadena de conexion. Es solo para desarrollo local; .env no se sube al repo.
+  - Superusuario postgres: se le puso la contrasena  postgres_dev_2026
+    (el usuario no la recordaba; esto resuelve el problema).
+    Es una contrasena de DESARROLLO. Para cambiarla por una propia:
+
+      & "E:\PostgresSQL\bin\psql.exe" -U postgres -h 127.0.0.1 -c "ALTER USER postgres WITH PASSWORD 'la-que-quieras';"
+
+COMANDOS DE USO
+
+    npm run db:migrate     aplica migraciones pendientes
+    npm run db:seed        carga los eventos de prueba (no hace nada si ya hay)
+    npm run db:studio      explorador visual
+
+    Para probar la restriccion R1 (se puede correr siempre):
+
+    & "E:\PostgresSQL\bin\psql.exe" -U casa_de_anton -h 127.0.0.1 -d casa_de_anton -f scripts/verify-constraints.sql
+
+NOTA SOBRE WINDOWS
+  psql no esta en el PATH, por eso se lo invoca con la ruta completa.
+  El servidor escucha en todas las interfaces, pero su configuracion NO tiene
+  ninguna regla que permita conexiones que no vengan de la propia maquina:
+  desde la red, PostgreSQL rechaza la conexion.
+
+-------------------------------------------------------------------------------
+12. RECUPERAR LA CONTRASENA DE POSTGRES (procedimiento, por si vuelve a pasar)
+-------------------------------------------------------------------------------
+
+Si algun dia se vuelve a olvidar la contrasena del superusuario postgres, este
+es el procedimiento. NO es exclusivo de este proyecto: sirve para cualquier
+PostgreSQL en Windows.
+
+  Requisitos: permiso de escritura sobre la carpeta de datos y UNA consola
+  elevada. Nada mas.
+
+  PASO 1 - Copia de seguridad de la configuracion de autenticacion
+
+    Copy-Item 'E:\PostgresSQL\data\pg_hba.conf' 'E:\PostgresSQL\data\pg_hba.conf.cda-backup' -Force
+
+  PASO 2 - Habilitar temporalmente el acceso local sin contrasena
+
+    Reemplazar scram-sha-256 por trust SOLO en las lineas que apuntan a
+    127.0.0.1 y ::1. NUNCA en las lineas que no son de loopback: eso abriria
+    la base a la red entera.
+
+  PASO 3 - Recargar la configuracion (requiere consola de administrador)
+
+    & 'E:\PostgresSQL\bin\pg_ctl.exe' reload -D 'E:\PostgresSQL\data'
+
+    Debe responder: server signaled
+
+  PASO 4 - Cambiar la contrasena (no pide la anterior)
+
+    & "E:\PostgresSQL\bin\psql.exe" -U postgres -h 127.0.0.1 -c "ALTER USER postgres WITH PASSWORD 'la-nueva';"
+
+  PASO 5 - RESTAURAR la configuracion original
+
+    Copy-Item 'E:\PostgresSQL\data\pg_hba.conf.cda-backup' 'E:\PostgresSQL\data\pg_hba.conf' -Force
+
+  PASO 6 - Recargar de nuevo, con la consola elevada (Paso 3 otra vez).
+
+  PASO 7 - VERIFICAR QUE LA SEGURIDAD VOLVIO
+
+    Conectar sin contrasena TIENE que ser rechazado. Si entra, la configuracion
+    no se restauro bien.
+
+  ADVERTENCIA IMPORTANTE: entre el Paso 3 y el Paso 6, cualquiera que pueda
+  conectarse a la maquina puede entrar como superusuario sin contrasena. La
+  ventana debe durar segundos, solo se habilita en loopback, y hay que
+  asegurarse de restaurar siempre. Verificar el Paso 7 no es opcional.
+
+  Lo que NO se puede hacer sin permisos de administrador: recargar la
+  configuracion. Ese paso lo tiene que hacer una persona.
+
+===============================================================================

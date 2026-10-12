@@ -1,0 +1,45 @@
+@import "tailwindcss";
+
+@theme {
+  /* Brand blue — sampled from the logo (hue ~223, indigo blue) */
+  --color-brand-50: #F4F4F8;
+  --color-brand-100: #E8E7EB;
+  --color-brand-200: #C6C9D7;
+  --color-brand-300: #8994B4;
+  --color-brand-400: #7986AB;
+  --color-brand-500: #576897;
+  --color-brand-600: #45578C;
+  --color-brand-700: #354A83;
+  --color-brand-800: #2D4380;
+  --color-brand-900: #263561;
+  --color-brand-950: #1B2749;
+
+  /* Mediterranean pink accent */
+  --color-accent-50: #FDF3F7;
+  --color-accent-100: #FBE8EF;
+  --color-accent-200: #F6D3E0;
+  --color-accent-300: #F2B8CB;
+  --color-accent-400: #E894B0;
+  --color-accent-500: #D96A93;
+  --color-accent-600: #C25680;
+  --color-accent-700: #A8436B;
+
+  /* Neutrals */
+  --color-paper: #FCF8F5; /* the cream background baked into the logo */
+  --color-ink: #1B2130;
+  --color-ink-soft: #5A6172;
+}
+
+/*
+ * `inline` is required here: the value references the `--font-montserrat`
+ * variable that `next/font` writes on the <html> element, so it must be
+ * emitted in place rather than as a static custom property.
+ */
+@theme inline {
+  --font-sans: var(--font-montserrat);
+}
+
+body {
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+}
