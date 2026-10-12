@@ -23,8 +23,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             <Image
               src="/logo.webp"
               alt="Casa de Antón"
-              width={1024}
-              height={768}
+              width={562}
+              height={262}
               className="h-9 w-auto"
               loading="eager"
             />
