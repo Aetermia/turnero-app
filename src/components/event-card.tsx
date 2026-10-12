@@ -12,7 +12,7 @@ export function EventCard({ event }: { event: EventWithSeats }) {
   return (
     <Link
       href={`/eventos/${event.id}`}
-      className="group flex h-full flex-col gap-3 rounded-2xl border border-brand-100 bg-white p-5 shadow-sm transition-colors hover:border-brand-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
+      className="group flex h-full flex-col gap-3 rounded-lg border border-brand-100 bg-white p-5 shadow-sm transition-colors hover:border-brand-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
     >
       <header className="flex flex-col gap-1">
         {event.theme ? (
@@ -62,8 +62,8 @@ export function EventCard({ event }: { event: EventWithSeats }) {
       <span
         className={
           isFull
-            ? "mt-auto inline-flex min-h-12 items-center justify-center rounded-full bg-brand-100 px-5 text-center font-semibold text-brand-700"
-            : "mt-auto inline-flex min-h-12 items-center justify-center rounded-full bg-brand-700 px-5 text-center font-semibold text-white transition-colors group-hover:bg-brand-800"
+            ? "mt-auto inline-flex min-h-12 items-center justify-center rounded-md bg-brand-100 px-5 text-center font-semibold text-brand-700"
+            : "mt-auto inline-flex min-h-12 items-center justify-center rounded-md bg-brand-700 px-5 text-center font-semibold text-white transition-colors group-hover:bg-brand-800"
         }
       >
         {isFull ? "Evento completo" : "Reservar mi lugar"}

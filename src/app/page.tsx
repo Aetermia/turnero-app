@@ -12,7 +12,7 @@ async function UpcomingEvents() {
 
   if (upcoming.length === 0) {
     return (
-      <p className="rounded-2xl border border-brand-100 bg-white p-6 text-center text-ink-soft">
+      <p className="rounded-lg border border-brand-100 bg-white p-6 text-center text-ink-soft">
         Todavía no hay eventos programados. Volvé pronto para conocer las
         próximas actividades.
       </p>
