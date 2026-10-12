@@ -90,9 +90,9 @@ Ocupan cupo: `pending_no_receipt`, `pending_review`, `approved`.
 - [x] **T2 Modelo de datos** — schema Drizzle, migración inicial, constraints (unicidad de una reserva activa por persona y evento).
 - [x] **T3 Conexión y seed** — cliente de base, script de seed con eventos de prueba. **Cerrada y verificada contra la base real**: migración aplicada, 3 tablas y 7 índices creados, 4 eventos cargados, y la restricción R1 probada a propósito (la base rechaza la segunda reserva activa de la misma persona en el mismo evento, y la acepta si la anterior fue rechazada). La prueba queda en `scripts/verify-constraints.sql`.
 - [x] **T4 Catálogo público** — listado de eventos publicados y detalle de evento. **Cerrada y verificada contra el servidor real**: los 3 eventos publicados se renderizan, el borrador no aparece en el cuerpo de ninguna respuesta, los lugares libres bajan de 12 a 11 al insertar una reserva real, y una reserva vencida **no** descuenta (R3 evaluado en SQL). Identidad visual **muestreada del logo real** con `sharp` (azul índigo + acento rosa mediterráneo + crema `#FCF8F5` + Montserrat), no inventada. Queda una incidencia conocida y aceptada: el detalle de un evento borrador responde `200` con la pantalla de "no encontrado" en vez de `404` — ver P6 en `PROGRESO.txt`.
-- [ ] **T5 Formulario de reserva** — validación Zod, transacción de cupo, creación de reserva pendiente con vencimiento.
-- [ ] **T6 Comprobante** — subida a bucket privado, compresión en cliente, datos declarados.
-- [ ] **T7 Auth admin** — login con usuario y contraseña, cookie de sesión, protección de rutas.
+- [x] **T5 Formulario de reserva** — validación Zod, transacción de cupo, creación de reserva pendiente con vencimiento. **Cerrada y verificada**: `npx tsc --noEmit` exit 0, `npm run build` exit 0, y la concurrencia probada de verdad con `scripts/verify-concurrency.mjs` (evento de 1 lugar con 8 intentos simultáneos de correos distintos → 1 aceptada y 7 rechazadas por falta de cupo; evento de 5 lugares con 2 intentos simultáneos del MISMO correo → 1 aceptada y 1 rechazada por reserva duplicada). Eso demuestra R1: el cupo se decide en la base con `SELECT ... FOR UPDATE`, no con un `if` en la aplicación.
+- [x] **T6 Comprobante** — subida a bucket privado, compresión en cliente, datos declarados. **Cerrada**: la foto se sube directo a Supabase con URL firmada (evita el límite de 1 MB del cuerpo de los Server Actions), con compresión previa en el navegador; al enviar, la reserva pasa a `pending_review` y se le limpia el vencimiento (a partir de ahí no se libera sola). `npx tsc --noEmit` exit 0 y `npm run build` exit 0.
+- [x] **T7 Auth admin** — login con usuario y contraseña, cookie de sesión, protección de rutas. **Cerrada y verificada contra el servidor real** (status codes medidos con curl, no deducidos): `/admin/login` sin sesión → 200 (sin bucle de redirección); `/admin` sin sesión → 307 a `/admin/login`; con cookie válida → 200; con cookie **vencida**, **manipulada** o de **otro usuario** → 307. Y el POST real del formulario: contraseña incorrecta → 303 a `?error=credentials` **sin** cookie; contraseña correcta → 303 a `/admin` con `Set-Cookie` `HttpOnly; Secure; SameSite=lax; Max-Age=604800`, y esa cookie emitida sirve para entrar (200). Sin dependencias nuevas: hash `scrypt` con el `crypto` de Node, generador en `scripts/hash-admin-password.mjs` como única fuente de los parámetros, y sesión por cookie firmada con HMAC (sin tabla de sesiones). Falla cerrado: sin variables de entorno no entra nadie.
 - [ ] **T8 CRUD de eventos** — crear, editar, publicar y despublicar desde el panel.
 - [ ] **T9 Gestión de reservas** — lista con filtros, ver comprobante, aprobar y rechazar con liberación de cupo.
 - [ ] **T10 Vencimiento y seguimiento** — cálculo de expiración y página pública de estado por token.
@@ -117,4 +117,43 @@ Ocupan cupo: `pending_no_receipt`, `pending_review`, `approved`.
 - Verificación: todo lo anterior está comprobado **consultando la base**, no leyendo archivos.
 - **T4 cerrada y verificada**. La regla de cupos quedó en una sola consulta, con la expiración evaluada en SQL (`now()`), sin reutilizar la lista estática `OCCUPYING_STATUSES`: esa lista no puede expresar el timer y habría hecho encoger el cupo para siempre.
 - Próximo paso: **T5 (formulario de reserva)**. Es la tarea más delicada del proyecto: acá nace la reserva, con transacción y lock. Es donde R1 tiene que aguantar concurrencia real, no en teoría.
+
+### T5 en curso — decisiones tomadas ANTES de escribir código
+
+- **T5 es el paso 1, no el formulario completo.** La propia lista de tareas ya
+  separa T6 ("Comprobante: subida a bucket privado, compresión en cliente, DATOS
+  DECLARADOS") de T5. Entonces T5 crea la reserva en `pending_no_receipt` con
+  datos personales, salud, términos y consentimiento; T6 agrega los datos de la
+  transferencia y el comprobante y la pasa a `pending_review`.
+- **El lock es `SELECT ... FOR UPDATE` sobre la fila del evento.** Es lo que
+  serializa los intentos de reserva sobre un mismo evento. Contar y después
+  insertar, sin lock, permite vender dos veces el último lugar: los dos leen el
+  mismo cupo y los dos insertan. Con el lock, el segundo intento espera y ve el
+  cupo ya consumido.
+- **El vencimiento se evalúa en SQL (`now()`), no en el código de aplicación.**
+  Igual que en T4. Una reserva `pending_no_receipt` vencida deja de ocupar cupo
+  sin que nadie corra nada (R3).
+- **El choque de "una reserva activa por persona y evento" se traduce a un
+  mensaje, no a un error 500.** La base ya lo impide (índice único parcial). El
+  código atrapa esa violación (SQLSTATE `23505`) FUERA de la transacción, porque
+  después de un error la transacción queda abortada, y responde "ya tenés una
+  reserva para este evento".
+- **T5 necesita un destino.** Después de enviar, la persona tiene que ver hasta
+  cuándo tiene el lugar y con qué token consultarlo. Se crea `/reservas/[token]`
+  en versión mínima; T10 la completa como página de estado. Un formulario que no
+  lleva a ningún lado no es software que funciona.
+- **Criterios de aceptación:**
+  (a) el formulario no deja pasar datos inválidos (Zod en el servidor, no solo
+  atributos HTML);
+  (b) con el último lugar libre, dos envíos simultáneos producen exactamente una
+  reserva y un "no hay lugar" — probado con concurrencia real;
+  (c) la misma persona no puede tener dos reservas activas en el mismo evento;
+  (d) `npx tsc --noEmit` y `npm run build` limpios.
+- **Verificación:** `scripts/verify-concurrency.mjs` dispara reservas en paralelo
+  contra la base real. La aserción la fija el orquestador (capacidad 1, 8
+  intentos, exactamente 1 éxito), y el orquestador vuelve a correr el script por
+  su cuenta. Un test que se escribe solo no se cree solo.
+- Pendiente nuevo: **P8** — falta el alias real de MercadoLibre para que la
+  pantalla de confirmación muestre el dato de pago. Se lee de una variable de
+  entorno, así que no bloquea el desarrollo.
 - Pendientes que bloquean tareas: **P4** (cómo se sube el comprobante, por el límite de 1 MB de las Server Actions) bloquea **T6**, y conviene resolverlo antes de llegar. **P2** (página de estado por token) corresponde a **T10**.

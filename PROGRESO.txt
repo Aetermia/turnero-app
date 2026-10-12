@@ -400,6 +400,13 @@ de versiones anteriores de Next. Se consulta la documentacion local del paquete.
         uuid que nadie escribe a mano. Si algun dia importa (monitoreo o
         analitica que distingan 404 reales), se agrega Proxy y listo.
 
+    P7. DEFINIR QUE HACER CON LA REVISION AUTOMATICA (RDD). Esta encendida a
+        nivel GLOBAL, o sea que aplica a todos los proyectos donde se use este
+        entorno, no solo a este. T4 no pudo revisarse porque la linea base de
+        git llego despues de terminarlo. Desde T5 en adelante funciona. Si se
+        prefiere no pagar ese costo, se apaga con un comando. Detalle completo
+        en la seccion 14.
+
 -------------------------------------------------------------------------------
 9. ESTRUCTURA ACTUAL DEL PROYECTO
 -------------------------------------------------------------------------------
@@ -672,5 +679,213 @@ PostgreSQL en Windows.
 
   Lo que NO se puede hacer sin permisos de administrador: recargar la
   configuracion. Ese paso lo tiene que hacer una persona.
+
+-------------------------------------------------------------------------------
+13. CONTROL DE VERSIONES (git) - ESTADO
+-------------------------------------------------------------------------------
+
+ESTADO: inicializado y con linea base.
+
+  Rama     : main
+  Commit   : 40ee346  "chore: baseline existing work through T4 (public event catalog)"
+  Contenido: 30 archivos, 10888 inserciones (el package-lock.json explica casi todo)
+
+QUE NO SE SUBE AL REPO (verificado antes de commitear):
+
+  node_modules/     dependencias instaladas (se reinstalan con npm install)
+  .next/            compilado de Next
+  .env              la cadena de conexion, con la contrasena real
+  *.tsbuildinfo     cache de TypeScript
+
+  El archivo .env.example SI se sube: es la plantilla, con CHANGE_ME en lugar de
+  la contrasena, y sirve para documentar que variables necesita la aplicacion.
+  Para eso se agrego la excepcion "!.env.example" al .gitignore.
+
+  Tambien se agrego .gitattributes con "* text=auto eol=lf". Motivo: el proyecto
+  se desarrolla en Windows y se despliega en Linux. Sin esa regla, git reescribe
+  los archivos a CRLF en Windows, y esa diferencia aparece como un cambio en
+  TODOS los archivos en TODOS los diffs. Eso tapa los cambios reales y hace que
+  las herramientas de revision reporten trabajo que nadie hizo.
+
+QUIEN CREO EL REPOSITORIO (dato que conviene saber):
+
+  El repositorio NO lo creo el agente al construir el proyecto: lo creo la
+  herramienta de revision (gentle-ai) al correr su chequeo de estado, en la rama
+  "master" y sin ningun commit. Su propia ayuda lo dice: inicializa git por su
+  cuenta cuando el espacio de trabajo no esta versionado. Es un efecto lateral.
+  Despues se renombro la rama a "main" y se hizo la linea base.
+
+PARA QUE SIRVE TENER ESTO:
+
+  A partir de ahora se puede ver que cambio en cada paso:
+
+    git status            que archivos se tocaron
+    git diff              que cambio, linea por linea
+    git log --oneline     la lista de unidades de trabajo
+
+  Regla de trabajo: una unidad de trabajo = un commit. Chico, con sus pruebas y
+  su documentacion en el mismo commit. Asi el historial se puede leer y, si algo
+  se rompe, se sabe exactamente donde mirar.
+
+  El agente NO hace commits ni push por su cuenta: el usuario maneja git.
+
+  ACTUALIZACION (el usuario cambio esta regla): el usuario habilito al agente a
+  usar git de forma autonoma, incluidos los commits, para no tener que ir y
+  venir en cada paso. Desde ahora el agente commitea por unidades de trabajo.
+  Lo que SIGUE siendo decision del usuario: publicar (push) y mergear.
+
+-------------------------------------------------------------------------------
+14. LA REVISION AUTOMATICA (RDD) - QUE ES Y COMO SE COMPORTA
+-------------------------------------------------------------------------------
+
+QUE ES: "receipt-driven development" es un sistema de revision que viene con
+gentle-ai. Cuando termina una unidad de trabajo evalua el RIESGO del cambio y,
+si corresponde, lanza revisores independientes que buscan problemas antes de
+dar la tarea por cerrada.
+
+ESTA ENCENDIDO A NIVEL GLOBAL. O sea: no es una decision tomada para este
+proyecto, es una configuracion global que aplica a TODO proyecto donde se use
+este entorno. Se puede consultar y apagar:
+
+    gentle-ai review mode status                          consulta, no cambia nada
+    gentle-ai review mode disable --scope clone --cwd .    apaga solo este proyecto
+    gentle-ai review mode enable  --scope global           prende global
+
+ESTADO EN ESTE PROYECTO: encendido, pero T4 NO pudo ser revisado.
+
+  Motivo, sin vueltas: la revision funciona comparando contra un commit
+  anterior. Cuando se hizo la linea base, T4 ya estaba terminado y adentro de
+  ese commit. Entonces no existe un "antes de T4" contra el cual compararlo, y
+  la herramienta lo dice ella misma:
+
+    "the review assess candidate has no pending changes; already-committed work
+     can be assessed by rerunning review assess --base-ref <commit>"
+
+  Se decidio NO fabricar una comparacion falsa ni revisar el proyecto entero
+  como si fuera un solo cambio: eso seria teatro, no verificacion. T4 ya esta
+  verificado con evidencia real (codigo HTTP medido con curl, cupos probados
+  contra la base, tsc y build limpios), que para esta tarea vale mas que una
+  revision formal.
+
+  LECCION PARA T5 EN ADELANTE: para que la revision sirva, la linea base tiene
+  que existir ANTES de empezar la tarea, y la tarea se cierra con su propio
+  commit. Recien ahi la revision tiene un cambio real que mirar. Y T5 es,
+  justamente, la tarea donde mas vale la pena: ahi nacen la transaccion y el
+  bloqueo, o sea la parte del sistema donde un error se paga con plata del
+  cliente.
+
+===============================================================================
+15. T5, T6 Y T7 - FORMULARIO, COMPROBANTE Y ACCESO AL PANEL
+===============================================================================
+
+T5 - FORMULARIO DE RESERVA (paso 1: datos de la persona)
+
+  Que hace: pide nombre y apellido, correo, WhatsApp, si tiene condiciones de
+  salud o limitaciones (con detalle obligatorio si responde que si), acepta los
+  terminos y, por separado, el consentimiento de marketing. Al enviar crea la
+  reserva en estado "pendiente sin comprobante" y le guarda el cupo.
+
+  LO IMPORTANTE, y el motivo por el que esta tarea se probo de verdad: el cupo
+  NO se decide con un "si quedan lugares, entro" en el codigo. Se decide en la
+  base de datos, bloqueando la fila del evento (SELECT ... FOR UPDATE) para que
+  dos personas que reservan en el mismo instante no entren las dos.
+
+  Prueba real (scripts/verify-concurrency.mjs, intentos SIMULTANEOS):
+    - evento con 1 lugar  -> 1 aceptada, 7 rechazadas por falta de cupo
+    - evento con 5 lugares, 2 intentos del MISMO correo -> 1 aceptada y
+      1 rechazada por reserva duplicada
+  Si el control estuviera en el codigo de la aplicacion, en la primera prueba
+  habrian entrado 8 personas a un evento de 1 lugar.
+
+T6 - COMPROBANTE (paso 2: datos de la transferencia y la foto)
+
+  Que hace: muestra el alias de pago, pide titular, monto, fecha y numero de
+  operacion, y permite adjuntar la foto del comprobante. Al enviar, la reserva
+  pasa a "pendiente de revision" y se le borra el vencimiento: a partir de ahi
+  NO se libera sola, la decide una persona.
+
+  Decision tecnica: la foto se sube DIRECTO a Supabase con una URL firmada, y
+  no a traves del servidor. Motivo: los Server Actions de Next 16 cortan el
+  cuerpo del pedido en 1 MB, y la foto de un comprobante sacada con un celular
+  pasa ese limite facil. Antes de subir, el navegador la comprime (canvas,
+  JPEG 0.8, maximo 1600 px). El bucket es PRIVADO y se lee con URLs firmadas
+  que vencen.
+
+T7 - ACCESO AL PANEL (un solo usuario)
+
+  Que hace: pantalla de ingreso, cookie de sesion y proteccion de todo /admin.
+
+  Decisiones tecnicas:
+    - SIN dependencias nuevas. La contrasena se guarda como hash scrypt en una
+      variable de entorno (nunca en la base, nunca en el codigo). Node ya trae
+      scrypt; no hizo falta instalar nada.
+    - La sesion NO usa tabla de sesiones: es una cookie firmada con HMAC. Si
+      alguien la modifica, la firma no coincide y queda afuera.
+    - El generador del hash vive en scripts/hash-admin-password.mjs y es la
+      unica fuente de verdad de los parametros, asi que el que genera y el que
+      verifica no pueden desincronizarse.
+    - Si faltan las variables de entorno, NO entra nadie (fallar cerrado).
+
+  Verificacion (medida con curl contra el servidor de produccion, no deducida):
+    /admin/login sin sesion             -> 200  (sin bucle de redireccion)
+    /admin sin sesion                   -> 307 a /admin/login
+    /admin con cookie valida            -> 200
+    /admin con cookie VENCIDA           -> 307
+    /admin con cookie MANIPULADA        -> 307
+    /admin con cookie de OTRO USUARIO   -> 307
+    POST contrasena incorrecta -> 303 a ?error=credentials y SIN cookie
+    POST contrasena correcta   -> 303 a /admin y con cookie
+                                  (HttpOnly; Secure; SameSite=lax;
+                                   Max-Age=604800)
+    y esa cookie real sirve para entrar -> 200
+
+LO QUE APARECIO AL REVISAR ESTAS TAREAS (y se corrigio)
+
+  1. EL LOGO NUEVO ESTABA DEFORMADO. El logo viejo medía 1024x768 y el nuevo
+     mide 562x262. El encabezado tenia clavadas las medidas viejas, asi que el
+     logo nuevo se estaba comprimiendo en pantalla. Corregido en
+     src/app/layout.tsx.
+
+  2. LAS REGLAS DEL COMPROBANTE ESTABAN ESCRITAS TRES VECES, y no coincidian:
+     en src/lib/validation.ts (que no importaba nadie: codigo muerto), en el
+     Server Action y en el componente del navegador. Ahora hay una sola fuente:
+     src/lib/receipt.ts. De paso, esos limites dejaron de recalcularse en cada
+     render.
+
+  3. DOS DEPENDENCIAS QUE NADIE USABA (bcryptjs y sus tipos), arrastradas por
+     un intento anterior que fallo a mitad de camino. Se sacaron. Una
+     dependencia de mas es codigo que hay que mantener sin motivo.
+
+  4. .env.example ESTABA MAL y rompia el despliegue: el codigo lee SUPABASE_URL
+     y PAYMENT_ALIAS, pero la plantilla pedia NEXT_PUBLIC_SUPABASE_URL y se
+     habia olvidado de PAYMENT_ALIAS. Quien siguiera esa guia ponia la variable
+     equivocada y la subida de comprobantes dejaba de funcionar. Corregido.
+
+DEPENDENCIAS DEL PROYECTO (despues de limpiar)
+
+  runtime:     next, react, react-dom, drizzle-orm, postgres,
+               @supabase/supabase-js
+  desarrollo:  typescript, tailwindcss, drizzle-kit, tsx, eslint y sus tipos
+
+PENDIENTE PARA QUE EL DUEÑO EMPIECE A USAR EL PANEL
+
+  Hay que cargar tres variables en .env (ver .env.example):
+    ADMIN_USER            el nombre de usuario
+    ADMIN_PASSWORD_HASH   se genera con:
+                          node scripts/hash-admin-password.mjs "tu-password"
+    SESSION_SECRET        una cadena larga y aleatoria
+  Mientras no esten, el panel no deja entrar y lo avisa en pantalla. Eso es a
+  proposito: preferimos que no entre nadie antes que dejar un acceso abierto.
+
+CONSUMO (T5 + T6 + T7; estimado, +-50%, ver seccion 10)
+
+  Tokens estimados: ~95k - 130k en las tres tareas juntas (lectura de codigo,
+  implementacion y verificacion). Participaron big-pickle (orquestador y
+  verificacion) y el agente general delegado para escribir el codigo.
+  Evaluacion: consumo MEDIO-ALTO. El motivo no fue escribir el codigo sino
+  VERIFICARLO: levantar el servidor de produccion y probar la sesion con
+  cookies validas, vencidas, manipuladas y ajenas costo mas que programar la
+  pantalla. Y valio la pena: aparecio que el archivo de variables de entorno
+  estaba mal y que el logo nuevo salia deformado.
 
 ===============================================================================
