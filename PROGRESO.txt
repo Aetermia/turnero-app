@@ -5,7 +5,7 @@
 
 Ultima actualizacion : 13/10/2026
 Estado general       : Etapa 1 (Discovery) CERRADA - Etapa 2 (Base tecnica) EN CURSO
-                       T1 a T11 cerradas y VERIFICADAS contra el sistema real.
+                       T1 a T12 cerradas y VERIFICADAS contra el sistema real.
 
 -------------------------------------------------------------------------------
 1. QUE ES ESTE ARCHIVO
@@ -1296,5 +1296,105 @@ PENDIENTE QUE DEJA T11
   P8 - Alias real de pago de MercadoLibre como variable de entorno (pendiente
        de la duena).
   P9 - Como sube la duena la imagen del evento (pendiente de la duena).
+
+-------------------------------------------------------------------------------
+20. T12 - CLIENTES Y EXPORTACION
+-------------------------------------------------------------------------------
+
+IMPLEMENTADO
+
+  Nueva pagina /admin/clientes: el listado de clientes (nombre, email,
+  WhatsApp) con lo que cada uno reservo, y export a CSV. Es la base de
+  contactos de la duena: antes los clientes solo "existian" dentro de la
+  lista de reservas.
+
+  Una fila por cliente, con agregados sobre reservations:
+    - reservas totales = count(*) de sus reservas;
+    - reservas activas = el MISMO predicado de cupos del sistema, evaluado
+      con effectiveStatusSql para que el timer cuente: count(*) filter
+      (where effectiveStatusSql in pending_no_receipt, pending_review,
+      approved), literalmente OCCUPYING_STATUSES de schema.ts;
+    - ultima reserva = max(created_at).
+  Orden: actividad mas reciente primero. El listado es inner join: un
+  cliente sin reservas no aparece (en este modelo los clientes existen a
+  traves de sus reservas).
+
+  Busqueda: un campo libre (nombre, email o WhatsApp) con ILIKE, sobre la
+  query string, mismo patron servidor que la lista de reservas. Escaping
+  obligatorio de \, % y _ en el termino: un % tipeado NO lista a todos.
+  Un termino invalido o de mas de 100 caracteres se ignora (nunca 500).
+  Una busqueda vacia devuelve {search:""} (falsy, sin filtro).
+
+  Export CSV: enlace "Exportar CSV" que conserva la busqueda activa
+  (/admin/clientes/export?search=...). Es un route handler:
+    - los route handlers NO pasan por el layout del panel, asi que pide
+      sesion ANTES de tocar cualquier dato (defensa en profundidad sobre
+      el proxy de borde) y redirige a /admin/login si no hay sesion;
+    - reusa el MISMO parseo de filtros y la MISMA query que la pagina: el
+      export respeta exactamente el filtro actual;
+    - UTF-8 con BOM + CRLF (Excel abre bien los acentos), toda columna
+      entrecomillada con comillas internas duplicadas;
+    - Content-Type text/csv; charset=utf-8 y Content-Disposition
+      attachment con nombre clientes-<fecha>.csv.
+
+  Privacidad (Ley 25.326): la condicion de salud NO entra ni en el listado
+  ni en el CSV (pertenece al detalle de la reserva); tampoco
+  marketing_consent.
+
+  El dashboard tiene ahora tres tarjetas: Eventos, Reservas y Clientes.
+
+COMO SE VERIFICO (contra la base real)
+
+  scripts/verify-clients.mjs: RESULT: PASS, exit 0. Crea datos de prueba
+  conocidos (eventos distintos por cliente para no pisar R1) y compara los
+  agregados contra un oraculo SQL independiente: A = 3 reservas / 2 activas
+  (aprobada + retencion viva + rechazada), B = 1/1, C = 1/0 con expires_at
+  vencida explicita, y NULL expires_at cuenta 0 activas (el timer pliega
+  por effectiveStatusSql en los dos casos). Prueba la busqueda por
+  fragmento de nombre/email/whatsapp (case-insensitive), los literales %
+  y _ (ninguno filtra todo), el CSV puro con casos sucios (coma, comilla,
+  salto de linea, acento, fecha null) con round-trip byte-exacto, y deja
+  la base con los mismos conteos (borra lo que crea). RED primero (el
+  import de clients.ts fallaba: modulo nuevo) y luego GREEN.
+
+  npx tsc --noEmit exit 0, npm run build exit 0, npx eslint de los archivos
+  tocados exit 0. Regresion: scripts/verify-whatsapp.mjs PASS (T11 no se
+  movio).
+
+  Verificacion INDEPENDIENTE (agente con contexto fresco): creo SUS propios
+  clientes VRFY-* en 8 eventos, comparo contra su propio oraculo raw SQL
+  (estado guardado + timer por rama, incluido el caso pending_no_receipt
+  con NULL expires_at), ataco el escape de busqueda con %, _, \, "a%a" y
+  "a_a" (todos 0 filas), el CSV a nivel byte (BOM, CRLF, comillas dobles,
+  salto de linea dentro del campo), el orden y el cableado de pagina y
+  route (auth textualmente ANTES del acceso a datos, instant=false, el
+  link de export conserva ?search=). Veredicto: T12 CONFIRMADA
+  FUNCIONANDO. Los 4 "FAILs" de su primer run fueron errores de sus propias
+  expectativas de test, no del codigo.
+
+  Spot check del orquestador: scripts/verify-clients.mjs PASS y
+  tsc --noEmit exit 0, sobre el arbol listo para commit.
+
+CONSUMO (T12; estimado, +-50%, ver seccion 10)
+
+  Tokens estimados: ~50k - 85k. Participaron big-pickle (orquestador, spec
+  y ruta), un writer (implementacion unica) y un verificador independiente.
+  Verificacion con base real propia de cada agente (oraculos SQL
+  independientes) pero sin tocar transacciones ni esquema. Evaluacion:
+  consumo MEDIO.
+
+PENDIENTE QUE DEJA T12
+
+  Con T12 cierra el lote autorizado T8-T12. Pendientes de la duena para
+  seguir (no bloquean):
+  P3 - Aviso AUTOMATICO de rechazo (mail/Twilio) sigue fuera de alcance;
+       hoy es el boton de un toque de T11 con el texto pre-armado.
+  P4 - Como sube el cliente el comprobante (limite de 1 MB de las Server
+       Actions) - bloqueaba la vieja T6.
+  P8 - Alias real de pago de MercadoLibre como variable de entorno.
+  P9 - Como sube la duena la imagen del evento.
+  - La direccion cliente -> casa (que el visitante escriba a la duena) no
+    existe: si se quiere, necesita una variable de entorno propia
+    (p. ej. VENUE_WHATSAPP).
 
 ===============================================================================

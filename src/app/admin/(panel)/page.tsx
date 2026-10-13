@@ -2,7 +2,8 @@ import Link from "next/link";
 
 /*
  * Minimal dashboard. The layout gates access; this page renders the links into
- * the event management (T8) and reservation management (T9) sections.
+ * the event management (T8), reservation management (T9) and client list/export
+ * (T12) sections.
  */
 export default function AdminDashboardPage() {
   return (
@@ -47,6 +48,23 @@ export default function AdminDashboardPage() {
             </span>
             <span className="text-sm text-ink-soft">
               Revisá los comprobantes y aprobá o rechazá los pagos.
+            </span>
+          </Link>
+        </li>
+
+        <li>
+          <Link
+            href="/admin/clientes"
+            className="flex h-full flex-col gap-1 rounded-lg border border-brand-100 bg-white p-5 transition-colors hover:border-brand-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
+          >
+            <span className="text-xs font-semibold uppercase tracking-wide text-accent-600">
+              Clientes
+            </span>
+            <span className="font-semibold text-brand-900">
+              Consultar clientes
+            </span>
+            <span className="text-sm text-ink-soft">
+              Mirá tu base de contactos y exportala en CSV.
             </span>
           </Link>
         </li>

@@ -2,10 +2,11 @@ import { z } from "zod";
 import { reservationStatus } from "@/db/schema";
 
 /**
- * Server-only validation for the reservation management panel.
+ * Server-only validation for the admin panel.
  *
- * Kept out of the client bundle on purpose, like the reservation and event
- * schemas: the grid relies on plain HTML plus the errors the action returns.
+ * Kept out of the client bundle on purpose, like the reservation, event and
+ * client schemas: the grids rely on plain HTML plus the errors the actions
+ * return.
  *
  * The list filters arrive from the URL, which anybody can edit. A bad value must
  * be IGNORED, not rejected: a hand-typed `?status=whatever` has to render the
@@ -40,6 +41,32 @@ export function parseAdminReservationFilters(params: {
   const parsed = adminReservationFiltersSchema.safeParse({
     eventId: firstValue(params.eventId),
     status: firstValue(params.status),
+  });
+
+  return parsed.success ? parsed.data : {};
+}
+
+/**
+ * Client list filters: a single free-text search over name, email and whatsapp.
+ *
+ * Trimmed and capped at 100 characters, matching the reservations filters'
+ * policy: a value that does not fit — or is not a string — is IGNORED, never a
+ * 500, so "no filter" is represented one single way. The LIKE escaping itself
+ * lives in `listClientsForAdmin`; this schema only validates the term.
+ */
+export const adminClientFiltersSchema = z.object({
+  search: z.string().trim().max(100).optional().catch(undefined),
+});
+
+/** Validated client filters; `undefined` means "no filter applied". */
+export type AdminClientFilters = z.infer<typeof adminClientFiltersSchema>;
+
+/** Normalizes raw `searchParams` into client filters, dropping anything invalid. */
+export function parseAdminClientFilters(params: {
+  search?: string | string[];
+}): AdminClientFilters {
+  const parsed = adminClientFiltersSchema.safeParse({
+    search: firstValue(params.search),
   });
 
   return parsed.success ? parsed.data : {};
