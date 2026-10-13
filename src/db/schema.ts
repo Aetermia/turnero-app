@@ -118,9 +118,12 @@ export const reservations = pgTable(
   },
   (table) => [
     uniqueIndex("reservations_public_token_unique").on(table.publicToken),
-    // One person cannot hold two seats for the same event. The condition makes
-    // the rule apply only to statuses that occupy a seat, so a rejected or
-    // expired reservation does not block a new attempt.
+    // One person cannot hold two seats for the same event. The condition keys on
+    // the STORED status, so it bites only for the three statuses that hold a
+    // seat: a rejected or cancelled row never blocks. A `pending_no_receipt`
+    // whose timer ran out is materialized to `expired` by `createReservation`
+    // before it inserts, so it stops blocking too — the timer itself lives in
+    // the seat predicate, not in this index.
     uniqueIndex("reservations_active_per_person_unique")
       .on(table.eventId, table.customerId)
       .where(sql`${table.status} in ('pending_no_receipt', 'pending_review', 'approved')`),

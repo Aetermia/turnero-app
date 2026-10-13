@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/db";
 import { events, reservations } from "@/db/schema";
+import { effectiveStatusSql } from "@/lib/reservations";
 import { ALLOWED_RECEIPT_MIME_TYPES, MAX_RECEIPT_FILE_SIZE } from "@/lib/receipt";
 import { createSignedUploadUrl } from "@/lib/storage";
 
@@ -63,8 +64,7 @@ export async function getSignedUploadUrl(
     .select({
       id: reservations.id,
       publicToken: reservations.publicToken,
-      status: reservations.status,
-      expiresAt: reservations.expiresAt,
+      effectiveStatus: effectiveStatusSql,
       receiptPath: reservations.receiptPath,
     })
     .from(reservations)
@@ -92,20 +92,21 @@ export async function getSignedUploadUrl(
     };
   }
 
-  if (r.status !== "pending_no_receipt") {
+  // The DB has already evaluated the hold timer; an expired hold is `expired`
+  // here, so the deadline is never compared against the app's clock.
+  if (r.effectiveStatus === "expired") {
     return {
       fieldErrors: {},
-      formError: "No es posible subir el comprobante en el estado actual",
+      formError: "La reserva ya expiró. No es posible completar el pago",
       success: false,
       data: null,
     };
   }
 
-  // Check expiration
-  if (r.expiresAt && r.expiresAt.getTime() <= Date.now()) {
+  if (r.effectiveStatus !== "pending_no_receipt") {
     return {
       fieldErrors: {},
-      formError: "La reserva ya expiró. No es posible completar el pago",
+      formError: "No es posible subir el comprobante en el estado actual",
       success: false,
       data: null,
     };
@@ -199,8 +200,7 @@ export async function completeReservationAction(
     .select({
       id: reservations.id,
       publicToken: reservations.publicToken,
-      status: reservations.status,
-      expiresAt: reservations.expiresAt,
+      effectiveStatus: effectiveStatusSql,
       receiptPath: reservations.receiptPath,
       eventId: reservations.eventId,
     })
@@ -226,18 +226,20 @@ export async function completeReservationAction(
     };
   }
 
-  if (r.status !== "pending_no_receipt") {
+  // The DB evaluates the hold timer inside `effectiveStatus`; no JavaScript
+  // clock is consulted, so the deadline cannot drift from the seat count.
+  if (r.effectiveStatus === "expired") {
     return {
       fieldErrors: {},
-      formError: "No es posible completar la reserva en el estado actual",
+      formError: "La reserva ya expiró. No es posible completar el pago",
       success: false,
     };
   }
 
-  if (r.expiresAt && r.expiresAt.getTime() <= Date.now()) {
+  if (r.effectiveStatus !== "pending_no_receipt") {
     return {
       fieldErrors: {},
-      formError: "La reserva ya expiró. No es posible completar el pago",
+      formError: "No es posible completar la reserva en el estado actual",
       success: false,
     };
   }

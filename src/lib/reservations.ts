@@ -133,7 +133,29 @@ export async function createReservation(
         })
         .returning({ id: customers.id });
 
-      // 6. Insert the reservation, holding a seat for 30 minutes. The expiry and
+      // 6. Materialize an expired hold of this same person for this event, before
+      //    the insert below. The partial unique index matches on the STORED
+      //    status, so a hold whose timer ran out would still count as active and
+      //    block this person forever — even though its seat is already free (the
+      //    seat predicate ignores it). Writing `expired` makes the index bite
+      //    only where it should. The condition is the exact complement of the
+      //    seat-holding predicate, evaluated by the DB clock. It needs no extra
+      //    lock: step 1 already holds the event row FOR UPDATE, which serializes
+      //    every attempt on this event, so this is race-free and idempotent. It
+      //    changes no seat count, because this row already stopped counting.
+      await tx
+        .update(reservations)
+        .set({ status: "expired", updatedAt: sql`now()` })
+        .where(
+          and(
+            eq(reservations.eventId, eventId),
+            eq(reservations.customerId, customer.id),
+            eq(reservations.status, "pending_no_receipt"),
+            sql`(${reservations.expiresAt} is null or ${reservations.expiresAt} <= now())`,
+          ),
+        );
+
+      // 7. Insert the reservation, holding a seat for 30 minutes. The expiry and
       //    the acceptance timestamp use the database clock so they agree with
       //    the `now()` that counts seats.
       const publicToken = randomBytes(32).toString("base64url");
@@ -149,7 +171,7 @@ export async function createReservation(
         termsAcceptedAt: sql`now()`,
       });
 
-      // 7. Success.
+      // 8. Success.
       return { ok: true, publicToken };
     });
   } catch (error) {
@@ -164,14 +186,50 @@ export async function createReservation(
   }
 }
 
+/** Literal union of the lifecycle states, taken from the table itself. */
+export type ReservationStatus = (typeof reservations.$inferSelect)["status"];
+
+/**
+ * The status a reservation shows *now*, with the hold timer evaluated by the
+ * database clock.
+ *
+ * `pending_no_receipt` holds its seat only while `expires_at` is in the future,
+ * so once that moment passes the row reads as `expired` even though the stored
+ * status never changes. This is the exact mirror of `seatHoldingPredicate` in
+ * `events.ts` and the single encoding of the rule: every surface that shows or
+ * filters a status projects this expression instead of copying the comparison
+ * into JavaScript. Nothing is written back (R3), which is what lets an abandoned
+ * hold release its seat with no cron job.
+ */
+export const effectiveStatusSql = sql<ReservationStatus>`case
+  when ${reservations.status} = 'pending_no_receipt'
+    and (${reservations.expiresAt} is null or ${reservations.expiresAt} <= now())
+  then 'expired'
+  else ${reservations.status}
+end`;
+
+/**
+ * Everything the public, token-only page renders — and nothing else.
+ *
+ * The declared health condition is deliberately absent: it is sensitive data
+ * under Ley 25.326 and this lookup needs no login, only the secret token.
+ */
 export type ReservationByToken = {
   publicToken: string;
-  status: (typeof reservations.$inferSelect)["status"];
+  status: ReservationStatus;
+  effectiveStatus: ReservationStatus;
   expiresAt: Date | null;
   createdAt: Date;
+  eventId: string;
   eventTitle: string;
   eventStartsAt: Date;
   eventPrice: string;
+  transferHolder: string | null;
+  transferAmount: string | null;
+  transferDate: string | null;
+  transferReference: string | null;
+  rejectionReason: string | null;
+  hasReceipt: boolean;
 };
 
 /** Public reservation lookup by its secret token; `null` when it does not exist. */
@@ -182,18 +240,31 @@ export async function getReservationByToken(
     .select({
       publicToken: reservations.publicToken,
       status: reservations.status,
+      effectiveStatus: effectiveStatusSql,
       expiresAt: reservations.expiresAt,
       createdAt: reservations.createdAt,
+      eventId: reservations.eventId,
       eventTitle: events.title,
       eventStartsAt: events.startsAt,
       eventPrice: events.price,
+      transferHolder: reservations.transferHolder,
+      transferAmount: reservations.transferAmount,
+      transferDate: reservations.transferDate,
+      transferReference: reservations.transferReference,
+      rejectionReason: reservations.rejectionReason,
+      receiptPath: reservations.receiptPath,
     })
     .from(reservations)
     .innerJoin(events, eq(events.id, reservations.eventId))
     .where(eq(reservations.publicToken, token))
     .limit(1);
 
-  return row ?? null;
+  if (!row) {
+    return null;
+  }
+
+  const { receiptPath, ...rest } = row;
+  return { ...rest, hasReceipt: receiptPath !== null };
 }
 
 /*
@@ -210,9 +281,6 @@ export async function getReservationByToken(
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** Literal union of the lifecycle states, taken from the table itself. */
-export type ReservationStatus = (typeof reservations.$inferSelect)["status"];
-
 /**
  * One row of the reservations list.
  *
@@ -223,6 +291,7 @@ export type ReservationStatus = (typeof reservations.$inferSelect)["status"];
 export type AdminReservationListItem = {
   id: string;
   status: ReservationStatus;
+  effectiveStatus: ReservationStatus;
   createdAt: Date;
   eventId: string;
   eventTitle: string;
@@ -241,6 +310,7 @@ export async function listReservationsForAdmin(
     .select({
       id: reservations.id,
       status: reservations.status,
+      effectiveStatus: effectiveStatusSql,
       createdAt: reservations.createdAt,
       eventId: reservations.eventId,
       eventTitle: events.title,
@@ -256,7 +326,9 @@ export async function listReservationsForAdmin(
     .where(
       and(
         filters.eventId ? eq(reservations.eventId, filters.eventId) : undefined,
-        filters.status ? eq(reservations.status, filters.status) : undefined,
+        // Filter on the timer-aware status, so an abandoned hold shows up under
+        // "Expirada" and disappears from "Pendiente de comprobante".
+        filters.status ? eq(effectiveStatusSql, filters.status) : undefined,
       ),
     )
     .orderBy(desc(reservations.createdAt));
@@ -271,6 +343,7 @@ export async function listReservationsForAdmin(
 export type AdminReservationDetail = {
   id: string;
   status: ReservationStatus;
+  effectiveStatus: ReservationStatus;
   createdAt: Date;
   updatedAt: Date;
   resolvedAt: Date | null;
@@ -320,6 +393,7 @@ export async function getReservationForAdminById(
     .select({
       id: reservations.id,
       status: reservations.status,
+      effectiveStatus: effectiveStatusSql,
       createdAt: reservations.createdAt,
       updatedAt: reservations.updatedAt,
       resolvedAt: reservations.resolvedAt,
@@ -363,6 +437,7 @@ export async function getReservationForAdminById(
   return {
     id: row.id,
     status: row.status,
+    effectiveStatus: row.effectiveStatus,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     resolvedAt: row.resolvedAt,

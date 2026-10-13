@@ -5,7 +5,7 @@
 
 Ultima actualizacion : 12/10/2026
 Estado general       : Etapa 1 (Discovery) CERRADA - Etapa 2 (Base tecnica) EN CURSO
-                       T1 a T9 cerradas y VERIFICADAS contra el sistema real.
+                       T1 a T10 cerradas y VERIFICADAS contra el sistema real.
 
 -------------------------------------------------------------------------------
 1. QUE ES ESTE ARCHIVO
@@ -1093,5 +1093,117 @@ PENDIENTE QUE DEJA T9
 
   P3 - Si al rechazar una reserva hay que avisarle a la persona (mail o
        WhatsApp) y con que texto. Hoy el sistema registra el rechazo y nada mas.
+
+===============================================================================
+18. T10 - VENCIMIENTO Y SEGUIMIENTO (PAGINA PUBLICA POR TOKEN)
+===============================================================================
+
+QUE SE CONSTRUYO
+
+  1. La regla de vencimiento quedo en UNA sola expresion SQL
+     (effectiveStatusSql, en src/lib/reservations.ts), el espejo exacto del
+     predicado de cupos:
+
+       una reserva pending_no_receipt con expires_at vencido (o NULL)
+       se presenta como "expirada"; todo lo demas, su estado guardado.
+
+     La evalua el reloj de la base (el mismo que cuenta cupos), no
+     JavaScript. Todo lo que muestra o filtra un estado usa ESA expresion:
+     la lista del panel, el detalle, la pagina publica y las dos Server
+     Actions que antes comparaban expiresAt en JavaScript (se eliminaron
+     esas comparaciones: ya no hay ninguna copia de la regla en JS).
+
+  2. La pagina publica /reservas/[token] dejo de mentir y distingue cada
+     estado: retencion activa (con su fecha limite), en revision, confirmada,
+     rechazada (con el motivo si la dueña lo escribio), VENCIDA ("el plazo
+     vencio y el lugar se libero", con vuelta al evento) y cancelada. Antes,
+     una retencion vencida seguia mostrando "Te guardamos el lugar" con una
+     fecha pasada, y todo lo demas caia en un texto generico.
+
+  3. La pagina publica hace UNA consulta (antes dos, una redundante) y nunca
+     selecciona la condicion de salud: es un dato sensible y esta pagina se
+     abre solo con un token, sin login.
+
+  4. El panel: el badge muestra el estado efectivo, y el filtro "Expirada"
+     ahora devuelve las que vencieron por timer (antes devolvia vacio porque
+     miraba el estado guardado).
+
+EL DEFECTO REAL QUE LA VERIFICACION ENCONTRO Y SE CORRIGIO
+
+  Una retencion vencida nunca se persistia como expirada (el vencimiento es
+  calculado al leer, R3). El indice unico parcial "una reserva activa por
+  persona y evento" mira el estado GUARDADO, asi que la persona quedaba
+  bloqueada para siempre: no podia volver a reservar el mismo evento, con el
+  cupo libre. El comentario del propio indice decia que una reserva expirada
+  no bloquea un nuevo intento — la realidad lo desmentia. Prueba observada:
+  occupied 1 -> (fuerzo expires_at al pasado) -> occupied 0 -> segunda reserva:
+  already_reserved. La unica salida era usar otro email.
+
+  Correccion: dentro de la MISMA transaccion de createReservation, despues
+  del upsert del cliente y antes del insert, se materializa el vencimiento:
+
+    UPDATE reservations SET status = 'expired', updated_at = now()
+    WHERE event_id = ... AND customer_id = ... AND status = 'pending_no_receipt'
+      AND (expires_at IS NULL OR expires_at <= now())
+
+  Por que es segura:
+    - la transaccion ya tiene la fila del evento con FOR UPDATE, asi que todos
+      los intentos sobre ese evento estan serializados: no hay carrera;
+    - la condicion es el complemento exacto del predicado de cupos, asi que
+      nunca toca una retencion viva;
+    - es idempotente;
+    - no mueve ningun conteo: la fila ya habia dejado de contar.
+  No hay migracion: ni el indice ni su predicado cambiaron, y el valor
+  'expired' ya existia en el enum. Ahora la vuelta al evento de la pagina
+  publica promete algo que la base cumple.
+
+COMO SE VERIFICO (contra la base real)
+
+  scripts/verify-reservations-expiry.mjs: RESULT: PASS, exit 0. Escenarios:
+  vencida vs vigente con el MISMO estado guardado; pending_review con
+  expires_at vieja que NO vence; filtro "Expirada" vs badge; privacidad
+  (getReservationByToken no expone la condicion de salud); re-reserva tras el
+  vencimiento (ok:true y la fila vieja queda guardada como expired); contraste:
+  tras un rechazo real, la re-reserva funciona.
+
+  Ademas, porque la correccion toca la transaccion de creacion (lo mas
+  delicado del proyecto): scripts/verify-concurrency.mjs PASS (capacidad 1,
+  8 intentos paralelos, exactamente 1 ganador; y mismo email en paralelo:
+  1 ok + 1 already_reserved) y scripts/verify-constraints.sql PASS (R1 sigue
+  mordiendo: segunda reserva activa rechazada por la base; tras un rechazo,
+  la acepta).
+
+  Verificacion INDEPENDIENTE en dos pasadas (agente con contexto fresco):
+  primera paso, confirmo el defecto con evidencia dura (occupied 1 -> 0 ->
+  already_reserved, contrastado con el caso rechazada -> re-reserva ok).
+  Segunda paso (despues de la correccion), ataco la correccion: re-reserva
+  ok, cupo vivo NO se sobre-materializa (sigue pending_no_receipt y la
+  segunda reserva da already_reserved), NULL expires_at vencido se materializa
+  y no bloquea, los conteos de cupo coinciden con un oraculo SQL independiente
+  en cada paso, R1 y concurrencia verdes, y el UNICO lugar que escribe
+  status='expired' en todo src/ es el UPDATE de materializacion
+  (src/lib/reservations.ts, linea 148).
+
+  Toda la corrida limpia lo que crea y compara conteos de las tres tablas
+  antes y despues: la base quedo como estaba.
+
+  npx tsc --noEmit exit 0, npm run build exit 0, npx eslint de los archivos
+  tocados exit 0.
+
+CONSUMO (T10; estimado, +-50%, ver seccion 10)
+
+  Tokens estimados: ~80k - 130k. Participaron big-pickle (orquestador),
+  dos writers (implementacion original y correccion/auditoria) y un
+  verificador independiente en dos pasadas. La primera delegacion de la
+  correccion se corto a mitad (Tool aborted) y se relanzo; la segunda
+  audito el codigo que la primera habia alcanzado a escribir y reprodujo
+  el RED->GREEN quitando temporalmente el fix. Evaluacion: consumo
+  MEDIO-ALTO; lo caro fue verificar, como en T8 y T9.
+
+PENDIENTE QUE DEJA T10
+
+  P3 - Si al rechazar una reserva hay que avisarle a la persona (mail o
+       WhatsApp) y con que texto. Hoy solo se registra el rechazo; la pagina
+       publica ya muestra el motivo si se escribio uno.
 
 ===============================================================================

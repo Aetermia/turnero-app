@@ -149,9 +149,9 @@ export default async function AdminReservationsPage({
                     {reservation.customerFullName}
                   </span>
                   <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-semibold ${STATUS_BADGE_CLASSES[reservation.status]}`}
+                    className={`rounded-full px-2 py-0.5 text-xs font-semibold ${STATUS_BADGE_CLASSES[reservation.effectiveStatus]}`}
                   >
-                    {formatReservationStatus(reservation.status)}
+                    {formatReservationStatus(reservation.effectiveStatus)}
                   </span>
                 </div>
                 <span className="text-sm text-ink-soft">

@@ -106,18 +106,24 @@ export default async function AdminReservationDetailPage({
             {customer.fullName}
           </h1>
           <span
-            className={`rounded-full px-2 py-0.5 text-xs font-semibold ${STATUS_BADGE_CLASSES[reservation.status]}`}
+            className={`rounded-full px-2 py-0.5 text-xs font-semibold ${STATUS_BADGE_CLASSES[reservation.effectiveStatus]}`}
           >
-            {formatReservationStatus(reservation.status)}
+            {formatReservationStatus(reservation.effectiveStatus)}
           </span>
         </div>
         <p className="text-sm text-ink-soft">
           Reserva creada el {formatDateTime(reservation.createdAt)}.
           {reservation.resolvedAt
             ? ` Resuelta el ${formatDateTime(reservation.resolvedAt)}.`
-            : reservation.expiresAt
-              ? ` Retiene el lugar hasta el ${formatDateTime(reservation.expiresAt)}.`
-              : ""}
+            : reservation.effectiveStatus === "expired"
+              ? ` El plazo de retención venció${
+                  reservation.expiresAt
+                    ? ` el ${formatDateTime(reservation.expiresAt)}`
+                    : ""
+                } y el lugar se liberó.`
+              : reservation.expiresAt
+                ? ` Retiene el lugar hasta el ${formatDateTime(reservation.expiresAt)}.`
+                : ""}
         </p>
       </div>
 
@@ -284,7 +290,7 @@ export default async function AdminReservationDetailPage({
         ) : (
           <div className="flex flex-col gap-1 text-sm">
             <p className="text-ink">
-              Estado actual: {formatReservationStatus(reservation.status)}.
+              Estado actual: {formatReservationStatus(reservation.effectiveStatus)}.
             </p>
             <p className="text-ink-soft">
               Solo las reservas en revisión se pueden aprobar o rechazar.
