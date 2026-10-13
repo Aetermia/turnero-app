@@ -14,6 +14,10 @@ import {
   getReservationForAdminById,
 } from "@/lib/reservations";
 import { createSignedReceiptUrl } from "@/lib/storage";
+import {
+  buildReservationWhatsAppMessage,
+  buildWhatsAppDeepLink,
+} from "@/lib/whatsapp";
 import { approveReservationAction } from "../actions";
 import { RejectForm } from "../reject-form";
 
@@ -40,6 +44,9 @@ const cardClass = "flex flex-col gap-3 rounded-lg border border-brand-100 bg-whi
 
 const approveButtonClass =
   "inline-flex min-h-12 w-full items-center justify-center rounded-md bg-brand-700 px-5 font-semibold text-white transition-colors hover:bg-brand-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 sm:w-auto sm:px-8";
+
+const whatsappButtonClass =
+  "inline-flex min-h-12 w-full items-center justify-center rounded-md border border-brand-200 bg-white px-5 font-semibold text-brand-700 transition-colors hover:bg-brand-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 sm:w-auto sm:px-8";
 
 function DataItem({
   label,
@@ -91,6 +98,18 @@ export default async function AdminReservationDetailPage({
   const { customer, event } = reservation;
   const receiptUrl = await signedReceiptUrl(reservation.receiptPath);
   const canResolve = reservation.status === "pending_review";
+
+  const whatsappMessage = buildReservationWhatsAppMessage({
+    fullName: customer.fullName,
+    eventTitle: event.title,
+    eventStartsAt: event.startsAt,
+    eventPrice: formatPrice(event.price),
+    expiresAt: reservation.expiresAt,
+    rejectionReason: reservation.rejectionReason,
+    paymentAlias: process.env.PAYMENT_ALIAS?.trim() ?? null,
+    effectiveStatus: reservation.effectiveStatus,
+  });
+  const whatsappLink = buildWhatsAppDeepLink(customer.whatsapp, whatsappMessage);
 
   return (
     <section className="flex flex-col gap-6">
@@ -153,6 +172,32 @@ export default async function AdminReservationDetailPage({
               : "No autorizó"}
           </DataItem>
         </dl>
+      </section>
+
+      <section className={cardClass}>
+        <h2 className="font-semibold text-brand-800">Contactar por WhatsApp</h2>
+        {whatsappLink ? (
+          <>
+            <p className="text-sm text-ink-soft">
+              Abre WhatsApp con un mensaje pre-armado según el estado actual de
+              la reserva. Revisalo y editá el texto antes de enviarlo: el envío
+              es manual, nada se manda solo.
+            </p>
+            <a
+              href={whatsappLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={whatsappButtonClass}
+            >
+              Contactar por WhatsApp
+            </a>
+          </>
+        ) : (
+          <p className="text-sm text-ink-soft">
+            El número {customer.whatsapp} no tiene un formato que WhatsApp pueda
+            abrir. Corregilo en la ficha de contacto de la persona.
+          </p>
+        )}
       </section>
 
       <section className={cardClass}>

@@ -3,9 +3,9 @@
   REGISTRO DE DESARROLLO
 ===============================================================================
 
-Ultima actualizacion : 12/10/2026
+Ultima actualizacion : 13/10/2026
 Estado general       : Etapa 1 (Discovery) CERRADA - Etapa 2 (Base tecnica) EN CURSO
-                       T1 a T10 cerradas y VERIFICADAS contra el sistema real.
+                       T1 a T11 cerradas y VERIFICADAS contra el sistema real.
 
 -------------------------------------------------------------------------------
 1. QUE ES ESTE ARCHIVO
@@ -1205,5 +1205,96 @@ PENDIENTE QUE DEJA T10
   P3 - Si al rechazar una reserva hay que avisarle a la persona (mail o
        WhatsApp) y con que texto. Hoy solo se registra el rechazo; la pagina
        publica ya muestra el motivo si se escribio uno.
+
+-------------------------------------------------------------------------------
+19. T11 - WHATSAPP DE 1 TOQUE
+-------------------------------------------------------------------------------
+
+IMPLEMENTADO
+
+  En el detalle de una reserva del panel aparece el boton "Contactar por
+  WhatsApp": abre la app con un mensaje pre-armado segun el estado efectivo
+  de la reserva y la duena lo edita antes de enviarlo. Comunicacion manual
+  y humana: nada se manda solo desde el servidor (no hay Twilio ni historial).
+
+  El numero se guarda como texto libre, asi que el deep link corre sobre una
+  normalizacion tolerante pero acotada, documentada como best effort:
+    - solo digitos, sin espacios/guiones/parentesis;
+    - prefijo internacional "00" al inicio se quita;
+    - "0" de troncal nacional al inicio se quita;
+    - "15" de formato movil viejo al inicio se quita;
+    - si no arranca con "54", se antepone el codigo de Argentina.
+  El link solo se dibuja cuando el resultado tiene 12 o 13 digitos que
+  arrancan con 54 (movil 549 + area + numero, o fijo 5411 + numero); si no,
+  buildWhatsAppDeepLink devuelve null y la pagina muestra una nota (la ficha
+  ya muestra el numero crudo para que la duena lo verifique). Ejemplos:
+    "11 5555-6666"        -> 541155556666  (valido)
+    "011-5555-6666"       -> 541155556666  (valido, mismo numero)
+    "+54 9 11 5555 6666"  -> 5491155556666 (valido)
+    "5491155556666"       -> 5491155556666 (valido, ya internacional)
+    "15 5555 6666"        -> 5455556666    (10 digitos -> null: el formato
+                                             viejo sin area no se puede
+                                             arreglar bien, mejor no abrir
+                                             un link roto)
+    "no tiene celular"    -> 54            (null)
+    "5401155556666"       -> 5401155556666 (14 digitos -> null)
+
+  Mensajes por estado (espanol, tuteo, sin emojis, CONFIRMADA en aprobada):
+    - pending_no_receipt: recordatorio de pago con precio, alias y fecha
+      limite (si no hay alias: "al alias que te pasamos por este chat");
+    - pending_review: comprobante recibido, en revision;
+    - approved: confirmada, te esperamos;
+    - rejected: no se pudo confirmar, con el motivo si existe;
+    - expired: se vencio el plazo y el lugar se libero;
+    - cancelled / resto: mensaje generico de contacto.
+  Vive en funciones puras en src/lib/whatsapp.ts; el mensaje se arma con el
+  estado efectivo (no el guardado) y el alias viene de process.env.PAYMENT_ALIAS.
+
+  P3 queda PARCIALMENTE respondido: rechazar sigue sin enviar nada
+  automatico, pero ahora la duena tiene el aviso de rechazo a un toque y
+  editable. El envio automatico (mail/Twilio) sigue fuera de alcance.
+
+COMO SE VERIFICO (sin base: funciones puras)
+
+  scripts/verify-whatsapp.mjs: RESULT: PASS, exit 0. Importa las funciones
+  reales con el resolver de alias y prueba la tabla de normalizacion, los
+  invalidos, el round-trip EXACTO del parametro ?text= (acentos, i, n, %,
+  &) y cada mensaje por estado (saluda con el primer nombre, contiene el
+  evento, el motivo solo si existe, la fecha limite y el alias, y no hay
+  emojis). RED primero (el import fallaba: las funciones no existian) y
+  luego GREEN.
+
+  npx tsc --noEmit exit 0, npm run build exit 0, npx eslint de los archivos
+  tocados exit 0.
+
+  Verificacion INDEPENDIENTE (agente con contexto fresco): ataco con su
+  propia tabla de 11 bordes (incluida la trampa del digito de mas en
+  "15 5555 6666", que el codigo resuelve bien: 10 digitos -> null), el
+  round-trip exacto con caracteres especiales, los mensajes por estado y
+  el cableado de la pagina (boton solo cuando el link no es null,
+  target=_blank + rel=noopener noreferrer, mensaje con effectiveStatus,
+  alias desde env). Veredicto: T11 CONFIRMADA FUNCIONANDO. La unica
+  "falla" fue un error de conteo de digitos del propio ataque.
+
+  Spot check del orquestador: scripts/verify-whatsapp.mjs PASS y
+  tsc --noEmit exit 0, sobre el arbol listo para commit.
+
+CONSUMO (T11; estimado, +-50%, ver seccion 10)
+
+  Tokens estimados: ~35k - 60k. Participaron big-pickle (orquestador, spec
+  y ruta), un writer (implementacion unica) y un verificador independiente.
+  Sin base de datos ni concurrencia, la verificacion fue barata en comparacion
+  con T8-T10. Evaluacion: consumo MEDIO.
+
+PENDIENTE QUE DEJA T11
+
+  P3 - El aviso automatico de rechazo (mail/Twilio) sigue fuera de alcance;
+       hoy el aviso es el boton de un toque con el texto pre-armado.
+  - La direccion cliente -> casa (que el visitante escriba a la duena) no
+    existe: no hay numero de la organizacion configurado. Si se quiere,
+    necesita una variable de entorno propia (p. ej. VENUE_WHATSAPP).
+  P8 - Alias real de pago de MercadoLibre como variable de entorno (pendiente
+       de la duena).
+  P9 - Como sube la duena la imagen del evento (pendiente de la duena).
 
 ===============================================================================
