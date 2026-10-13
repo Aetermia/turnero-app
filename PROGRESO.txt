@@ -5,7 +5,7 @@
 
 Ultima actualizacion : 12/10/2026
 Estado general       : Etapa 1 (Discovery) CERRADA - Etapa 2 (Base tecnica) EN CURSO
-                       T1 a T8 cerradas y VERIFICADAS contra el sistema real.
+                       T1 a T9 cerradas y VERIFICADAS contra el sistema real.
 
 -------------------------------------------------------------------------------
 1. QUE ES ESTE ARCHIVO
@@ -988,5 +988,110 @@ PENDIENTE QUE DEJA T8
 
   P9 - Como sube la dueña la imagen del evento (subida a storage, como el
        comprobante, o un enlace). Hasta resolverlo, los eventos no tienen foto.
+
+===============================================================================
+17. T9 - GESTION DE RESERVAS DESDE EL PANEL
+===============================================================================
+
+QUE SE CONSTRUYO
+
+  La pantalla que la dueña usa a diario: la lista de reservas con filtros, el
+  detalle de cada una, ver el comprobante, y aprobar o rechazar.
+
+  Archivos nuevos:
+    src/lib/reservation-admin-schema.ts           validacion de filtros y motivo
+    src/app/admin/(panel)/reservas/actions.ts     las Server Actions
+    src/app/admin/(panel)/reservas/reject-form.tsx
+    src/app/admin/(panel)/reservas/page.tsx       lista + filtros
+    src/app/admin/(panel)/reservas/[id]/page.tsx  detalle
+    scripts/verify-reservations-admin.mjs         prueba contra la base real
+  Modificados:
+    src/lib/reservations.ts                       acceso de admin
+    src/lib/format.ts                             fechas y etiquetas de estado
+    src/app/admin/(panel)/page.tsx                enlace a reservas
+
+LA IDEA CENTRAL: RECHAZAR LIBERA EL CUPO SOLO
+
+  No hay ningun contador de lugares. El predicado que cuenta lugares ocupados
+  mira el ESTADO de la reserva: pending_review y approved ocupan; rejected,
+  expired y cancelled no. Entonces:
+
+    - APROBAR no mueve ningun numero: el lugar ya estaba retenido desde
+      pending_review y sigue retenido en approved;
+    - RECHAZAR libera el lugar por si solo, porque la fila deja de cumplir el
+      predicado. No hay que restar nada a mano, y no existe la posibilidad de
+      que un contador quede desincronizado con la realidad.
+
+  Es el mismo criterio que ya regia en el catalogo (R1/R3): decide la base, no
+  un "if" en la aplicacion que puede quedar viejo.
+
+DECISIONES QUE CONVIENEN ENTENDER
+
+  1. NO SE PUEDE APROBAR ALGO QUE NO PAGO. Solo se aprueba o rechaza lo que
+     esta en pending_review. Una reserva sin comprobante (pending_no_receipt)
+     no se aprueba: todavia no hay plata. La condicion va en el WHERE del
+     UPDATE (status = 'pending_review'), asi que un doble clic o dos pestañas
+     no aplican la transicion dos veces: la segunda no matchea ninguna fila y
+     la pantalla lo dice, en vez de fingir exito.
+
+  2. EL COMPROBANTE NO ES UN LINK PUBLICO. El bucket es privado, asi que el
+     detalle pide una URL firmada y de vida corta en el momento de dibujar. Si
+     Supabase no esta configurado (como en desarrollo local con Postgres), la
+     pantalla NO se cae: muestra un aviso y sigue.
+
+  3. LA CONDICION DE SALUD ES UN DATO SENSIBLE. El detalle la muestra (la
+     dueña la necesita para organizar el encuentro), pero la LISTA no la trae
+     a proposito: el listado es una cola de trabajo. Queda dentro del panel
+     autenticado y no aparece en ninguna pagina publica. Ley 25.326.
+
+  4. EL MOTIVO DEL RECHAZO ES OPCIONAL. Se guarda si lo escribis, y vacio se
+     guarda como NULL (no como texto vacio), para poder distinguir "rechazada
+     con una nota" de "rechazada sin decir nada". Avisarle a la persona que
+     fue rechazada sigue siendo un pendiente (P3).
+
+  5. LOS FILTROS VIENEN DE LA URL Y CUALQUIERA PUEDE EDITARLA. Un valor
+     invalido (?status=loquesea) se IGNORA y muestra la lista completa; nunca
+     un 500.
+
+COMO SE VERIFICO (contra la base real, no leyendo archivos)
+
+  scripts/verify-reservations-admin.mjs corre el modulo REAL contra Postgres
+  (mismo patron que verify-events-admin.mjs) y prueba 10 escenarios. RESULT:
+  PASS, exit 0. Los dos que importan, con numeros observados:
+
+    - APROBAR:   occupied/seatsAvailable 1/4 ANTES y 1/4 DESPUES (identico);
+    - RECHAZAR:  occupied/seatsAvailable 1/4 ANTES y 0/5 DESPUES (libera
+                 exactamente un lugar);
+    - en estados que no son pending_review, aprobar y rechazar devuelven false
+      y la fila queda intacta;
+    - doble clic: la segunda vez devuelve false;
+    - rechazar sin motivo guarda NULL, no "";
+    - ids mal formados devuelven false/null, nunca un 500;
+    - la lista filtra por evento, por estado y por ambos, y NO expone la
+      condicion de salud.
+  El script borra todo lo que crea y compara los conteos de las tres tablas
+  antes y despues: la base queda como estaba.
+
+  Ademas: npx tsc --noEmit exit 0, npm run build exit 0, y npx eslint de los
+  archivos nuevos exit 0.
+
+  Hallazgo de la verificacion (corregido): el action le pasaba
+  formData.get("rejectionReason") al schema, y ese valor es null cuando el
+  campo no viene; en Zod v4 z.string().optional() RECHAZA null, asi que un
+  POST armado a mano recibia un error de validacion con mensaje en ingles. No
+  era alcanzable desde la UI (el textarea siempre manda ""), pero se corrigio
+  normalizando a undefined.
+
+CONSUMO (T9; estimado, +-50%, ver seccion 10)
+
+  Tokens estimados: ~70k - 100k. Participaron big-pickle (orquestador y
+  lectura estructural) y un agente general (writer). El verificador
+  independiente tuvo que reintentarse una vez por rate limit del proveedor.
+  Evaluacion: consumo MEDIO-ALTO. Igual que en T8, lo caro fue verificar.
+
+PENDIENTE QUE DEJA T9
+
+  P3 - Si al rechazar una reserva hay que avisarle a la persona (mail o
+       WhatsApp) y con que texto. Hoy el sistema registra el rechazo y nada mas.
 
 ===============================================================================

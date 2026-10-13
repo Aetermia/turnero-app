@@ -1,8 +1,8 @@
 import Link from "next/link";
 
 /*
- * Minimal dashboard. The layout gates access; this page renders a link into the
- * event management section added in T8. Reservation management lands here next.
+ * Minimal dashboard. The layout gates access; this page renders the links into
+ * the event management (T8) and reservation management (T9) sections.
  */
 export default function AdminDashboardPage() {
   return (
@@ -33,11 +33,24 @@ export default function AdminDashboardPage() {
             </span>
           </Link>
         </li>
-      </ul>
 
-      <p className="rounded-lg border border-dashed border-brand-200 bg-white p-6 text-sm text-ink-soft">
-        La sección de reservas se va a habilitar en los próximos pasos.
-      </p>
+        <li>
+          <Link
+            href="/admin/reservas"
+            className="flex h-full flex-col gap-1 rounded-lg border border-brand-100 bg-white p-5 transition-colors hover:border-brand-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
+          >
+            <span className="text-xs font-semibold uppercase tracking-wide text-accent-600">
+              Reservas
+            </span>
+            <span className="font-semibold text-brand-900">
+              Gestionar reservas
+            </span>
+            <span className="text-sm text-ink-soft">
+              Revisá los comprobantes y aprobá o rechazá los pagos.
+            </span>
+          </Link>
+        </li>
+      </ul>
     </section>
   );
 }

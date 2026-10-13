@@ -1,7 +1,8 @@
 import { randomBytes } from "node:crypto";
-import { and, eq, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { customers, events, reservations } from "@/db/schema";
+import type { AdminReservationFilters } from "@/lib/reservation-admin-schema";
 
 /**
  * Creating a reservation, with the seat held atomically.
@@ -193,4 +194,265 @@ export async function getReservationByToken(
     .limit(1);
 
   return row ?? null;
+}
+
+/*
+ * ---------------------------------------------------------------------------
+ * Admin data access.
+ *
+ * The panel reads and resolves reservations here. The seat-holding rule is never
+ * re-implemented: `approved` and `pending_review` both hold a seat, so approving
+ * changes no count and rejecting frees the seat by the schema predicate alone,
+ * with no counter to decrement.
+ * ---------------------------------------------------------------------------
+ */
+
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Literal union of the lifecycle states, taken from the table itself. */
+export type ReservationStatus = (typeof reservations.$inferSelect)["status"];
+
+/**
+ * One row of the reservations list.
+ *
+ * The declared health condition is deliberately NOT selected here: the list is a
+ * work queue, and the sensitive field belongs behind the detail page, which is
+ * where the owner actually reads it.
+ */
+export type AdminReservationListItem = {
+  id: string;
+  status: ReservationStatus;
+  createdAt: Date;
+  eventId: string;
+  eventTitle: string;
+  eventStartsAt: Date;
+  customerFullName: string;
+  customerEmail: string;
+  customerWhatsapp: string;
+  hasReceipt: boolean;
+};
+
+/** Reservations for the panel, newest first, filtered by event and/or status. */
+export async function listReservationsForAdmin(
+  filters: AdminReservationFilters,
+): Promise<AdminReservationListItem[]> {
+  const rows = await db
+    .select({
+      id: reservations.id,
+      status: reservations.status,
+      createdAt: reservations.createdAt,
+      eventId: reservations.eventId,
+      eventTitle: events.title,
+      eventStartsAt: events.startsAt,
+      customerFullName: customers.fullName,
+      customerEmail: customers.email,
+      customerWhatsapp: customers.whatsapp,
+      receiptPath: reservations.receiptPath,
+    })
+    .from(reservations)
+    .innerJoin(customers, eq(customers.id, reservations.customerId))
+    .innerJoin(events, eq(events.id, reservations.eventId))
+    .where(
+      and(
+        filters.eventId ? eq(reservations.eventId, filters.eventId) : undefined,
+        filters.status ? eq(reservations.status, filters.status) : undefined,
+      ),
+    )
+    .orderBy(desc(reservations.createdAt));
+
+  return rows.map(({ receiptPath, ...row }) => ({
+    ...row,
+    hasReceipt: receiptPath !== null,
+  }));
+}
+
+/** Everything the detail page shows for one reservation, in one join. */
+export type AdminReservationDetail = {
+  id: string;
+  status: ReservationStatus;
+  createdAt: Date;
+  updatedAt: Date;
+  resolvedAt: Date | null;
+  expiresAt: Date | null;
+  rejectionReason: string | null;
+  transferHolder: string | null;
+  transferAmount: string | null;
+  transferDate: string | null;
+  transferReference: string | null;
+  receiptPath: string | null;
+  receiptMimeType: string | null;
+  receiptUploadedAt: Date | null;
+  hasCondition: boolean;
+  conditionDetails: string | null;
+  termsAcceptedAt: Date;
+  customer: {
+    fullName: string;
+    email: string;
+    whatsapp: string;
+    marketingConsent: boolean;
+    marketingConsentAt: Date | null;
+    createdAt: Date;
+  };
+  event: {
+    id: string;
+    title: string;
+    theme: string | null;
+    location: string | null;
+    startsAt: Date;
+    endsAt: Date;
+    capacity: number;
+    price: string;
+  };
+};
+
+/** One reservation with its customer and event, or `null` when it does not exist. */
+export async function getReservationForAdminById(
+  id: string,
+): Promise<AdminReservationDetail | null> {
+  // A malformed uuid would make Postgres reject the comparison with a 500; the
+  // page must 404 instead.
+  if (!UUID_PATTERN.test(id)) {
+    return null;
+  }
+
+  const [row] = await db
+    .select({
+      id: reservations.id,
+      status: reservations.status,
+      createdAt: reservations.createdAt,
+      updatedAt: reservations.updatedAt,
+      resolvedAt: reservations.resolvedAt,
+      expiresAt: reservations.expiresAt,
+      rejectionReason: reservations.rejectionReason,
+      transferHolder: reservations.transferHolder,
+      transferAmount: reservations.transferAmount,
+      transferDate: reservations.transferDate,
+      transferReference: reservations.transferReference,
+      receiptPath: reservations.receiptPath,
+      receiptMimeType: reservations.receiptMimeType,
+      receiptUploadedAt: reservations.receiptUploadedAt,
+      hasCondition: reservations.hasCondition,
+      conditionDetails: reservations.conditionDetails,
+      termsAcceptedAt: reservations.termsAcceptedAt,
+      customerFullName: customers.fullName,
+      customerEmail: customers.email,
+      customerWhatsapp: customers.whatsapp,
+      customerMarketingConsent: customers.marketingConsent,
+      customerMarketingConsentAt: customers.marketingConsentAt,
+      customerCreatedAt: customers.createdAt,
+      eventId: events.id,
+      eventTitle: events.title,
+      eventTheme: events.theme,
+      eventLocation: events.location,
+      eventStartsAt: events.startsAt,
+      eventEndsAt: events.endsAt,
+      eventCapacity: events.capacity,
+      eventPrice: events.price,
+    })
+    .from(reservations)
+    .innerJoin(customers, eq(customers.id, reservations.customerId))
+    .innerJoin(events, eq(events.id, reservations.eventId))
+    .where(eq(reservations.id, id))
+    .limit(1);
+
+  if (!row) {
+    return null;
+  }
+
+  return {
+    id: row.id,
+    status: row.status,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    resolvedAt: row.resolvedAt,
+    expiresAt: row.expiresAt,
+    rejectionReason: row.rejectionReason,
+    transferHolder: row.transferHolder,
+    transferAmount: row.transferAmount,
+    transferDate: row.transferDate,
+    transferReference: row.transferReference,
+    receiptPath: row.receiptPath,
+    receiptMimeType: row.receiptMimeType,
+    receiptUploadedAt: row.receiptUploadedAt,
+    hasCondition: row.hasCondition,
+    conditionDetails: row.conditionDetails,
+    termsAcceptedAt: row.termsAcceptedAt,
+    customer: {
+      fullName: row.customerFullName,
+      email: row.customerEmail,
+      whatsapp: row.customerWhatsapp,
+      marketingConsent: row.customerMarketingConsent,
+      marketingConsentAt: row.customerMarketingConsentAt,
+      createdAt: row.customerCreatedAt,
+    },
+    event: {
+      id: row.eventId,
+      title: row.eventTitle,
+      theme: row.eventTheme,
+      location: row.eventLocation,
+      startsAt: row.eventStartsAt,
+      endsAt: row.eventEndsAt,
+      capacity: row.eventCapacity,
+      price: row.eventPrice,
+    },
+  };
+}
+
+/**
+ * Approves a `pending_review` reservation.
+ *
+ * The status condition lives in the `WHERE`, not in a read-then-write, so a
+ * double click or a second tab cannot apply the transition twice: the second
+ * `UPDATE` matches no row and reports `false` instead of faking success.
+ *
+ * Approving does not move any seat count. `pending_review` already held the
+ * seat and `approved` keeps holding it, so there is nothing to add or subtract.
+ */
+export async function approveReservation(id: string): Promise<boolean> {
+  if (!UUID_PATTERN.test(id)) {
+    return false;
+  }
+
+  const updated = await db
+    .update(reservations)
+    .set({ status: "approved", resolvedAt: sql`now()`, updatedAt: sql`now()` })
+    .where(
+      and(eq(reservations.id, id), eq(reservations.status, "pending_review")),
+    )
+    .returning({ id: reservations.id });
+
+  return updated.length > 0;
+}
+
+/**
+ * Rejects a `pending_review` reservation, optionally recording a reason.
+ *
+ * The seat is released by the schema itself: the seat-holding predicate counts
+ * `pending_review`/`approved` only, so flipping the row to `rejected` frees the
+ * place with no counter to decrement. Same conditional `WHERE` as approve, so a
+ * repeated submit cannot reject twice.
+ */
+export async function rejectReservation(
+  id: string,
+  rejectionReason: string | null,
+): Promise<boolean> {
+  if (!UUID_PATTERN.test(id)) {
+    return false;
+  }
+
+  const updated = await db
+    .update(reservations)
+    .set({
+      status: "rejected",
+      rejectionReason,
+      resolvedAt: sql`now()`,
+      updatedAt: sql`now()`,
+    })
+    .where(
+      and(eq(reservations.id, id), eq(reservations.status, "pending_review")),
+    )
+    .returning({ id: reservations.id });
+
+  return updated.length > 0;
 }
