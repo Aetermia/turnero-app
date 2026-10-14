@@ -3,9 +3,11 @@
   REGISTRO DE DESARROLLO
 ===============================================================================
 
-Ultima actualizacion : 13/10/2026
-Estado general       : Etapa 1 (Discovery) CERRADA - Etapa 2 (Base tecnica) EN CURSO
-                       T1 a T12 cerradas y VERIFICADAS contra el sistema real.
+Ultima actualizacion : 14/10/2026
+Estado general       : Etapa 1 (Discovery) CERRADA - Etapa 2 (Construccion) CERRADA
+                       T1 a T12 cerradas. Proximo paso: despliegue (Supabase +
+                       Vercel) y prueba de punta a punta de la subida del
+                       comprobante (ver seccion 21).
 
 -------------------------------------------------------------------------------
 1. QUE ES ESTE ARCHIVO
@@ -348,14 +350,14 @@ de versiones anteriores de Next. Se consulta la documentacion local del paquete.
     [X] T2  Modelo de datos                CERRADA (schema + migracion)
     [X] T3  Conexion y datos de prueba     CERRADA (migracion + seed verificados)
     [X] T4  Catalogo publico de eventos    CERRADA (catalogo + detalle verificados)
-    [ ] T5  Formulario de reserva
-    [ ] T6  Subida de comprobante          DEPENDE de la decision P4
-    [ ] T7  Login del panel admin
-    [ ] T8  CRUD de eventos
-    [ ] T9  Gestion de reservas (aprobar / rechazar)
-    [ ] T10 Vencimiento y pagina de seguimiento
-    [ ] T11 Boton de WhatsApp en un toque
-    [ ] T12 Listado de clientes
+    [X] T5  Formulario de reserva          CERRADA (concurrencia probada)
+    [X] T6  Subida de comprobante          CERRADA, SIN PRUEBA REAL (ver sec. 21)
+    [X] T7  Login del panel admin          CERRADA (status codes medidos)
+    [X] T8  CRUD de eventos                CERRADA (verificada contra la base)
+    [X] T9  Gestion de reservas            CERRADA (verificada contra la base)
+    [X] T10 Vencimiento y seguimiento      CERRADA (verificada contra la base)
+    [X] T11 Boton de WhatsApp en un toque  CERRADA (funciones puras probadas)
+    [X] T12 Listado de clientes            CERRADA (verificada contra la base)
 
 -------------------------------------------------------------------------------
 8. PENDIENTES Y BLOQUEOS
@@ -375,8 +377,10 @@ de versiones anteriores de Next. Se consulta la documentacion local del paquete.
         se rechaza, el dinero ya fue transferido y hay que devolverlo. No es
         solo un cambio de estado.
 
-    P4. Definir COMO se sube el comprobante, dado el hallazgo H5 (limite de
-        1 MB en Server Actions). BLOQUEA T6.
+    P4. RESUELTO con la Opcion B (subida directa a Supabase con URL firmada,
+        ver seccion 15). Se conserva el analisis original:
+        Definir COMO se sube el comprobante, dado el hallazgo H5 (limite de
+        1 MB en Server Actions).
           Opcion A: ampliar el limite del cuerpo de la Server Action. Simple,
                     pero el archivo pasa por nuestro servidor.
           Opcion B: subida directa desde el celular al almacenamiento con una
@@ -1389,12 +1393,70 @@ PENDIENTE QUE DEJA T12
   seguir (no bloquean):
   P3 - Aviso AUTOMATICO de rechazo (mail/Twilio) sigue fuera de alcance;
        hoy es el boton de un toque de T11 con el texto pre-armado.
-  P4 - Como sube el cliente el comprobante (limite de 1 MB de las Server
-       Actions) - bloqueaba la vieja T6.
   P8 - Alias real de pago de MercadoLibre como variable de entorno.
   P9 - Como sube la duena la imagen del evento.
   - La direccion cliente -> casa (que el visitante escriba a la duena) no
     existe: si se quiere, necesita una variable de entorno propia
     (p. ej. VENUE_WHATSAPP).
+
+===============================================================================
+
+===============================================================================
+21. AJUSTES POST-T12 (14/10/2026)
+===============================================================================
+
+QUE SE CORRIGIO
+
+  1. ZOD COMO DEPENDENCIA DECLARADA. El codigo importa zod en cuatro archivos,
+     pero package.json no lo declaraba: se instalaba de rebote como
+     dependencia de desarrollo de otra herramienta. En un despliegue que no
+     instala dependencias de desarrollo el build se rompia. Ahora esta en
+     "dependencies" (misma version 4.6.6 que ya estaba en el lockfile).
+
+  2. EL COMPROBANTE ACEPTA PDF. Lo acordado en Discovery (3.4) era "foto o
+     PDF", pero solo se aceptaban imagenes. Los bancos suelen entregar el
+     comprobante en PDF. La regla vive en src/lib/receipt.ts (unica fuente):
+     el selector de archivos, las Server Actions y el panel la leen de ahi.
+       - El PDF no pasa por la compresion (no es una imagen); se sube tal cual,
+         con el mismo limite de 8 MB.
+       - En el panel, un PDF se abre con el boton "Abrir el PDF en una pestana
+         nueva" (no se intenta dibujar como imagen).
+
+  3. REINTENTO VISIBLE (R4). Si la subida falla, la persona ve "No pudimos
+     subir el comprobante. Revisa tu conexion y toca Reintentar" y el boton
+     cambia a "Reintentar". Antes veia un error tecnico en ingles
+     ("Error al subir archivo: Bad Request").
+       - Si el navegador no puede comprimir la foto (HEIC fuera de Safari), se
+         sube la original en vez de frenar a la persona: ya paso el control de
+         tipo y tamano.
+       - El error interno del almacenamiento ya no se muestra en la pagina
+         publica (podia nombrar la configuracion del servidor); queda en el
+         log del servidor.
+
+  4. ESTA BITACORA SE PUSO AL DIA: encabezado, seccion 7 (estado del plan) y
+     P4, que figuraban como pendientes cuando ya estaban hechos.
+
+COMO SE VERIFICO
+
+  npx tsc --noEmit exit 0, npm run build exit 0, npx eslint de los archivos
+  tocados sin errores.
+  NOTA: npm run build necesita DATABASE_URL definida (src/db/index.ts falla
+  al cargar si no existe), aunque no se conecte. En Vercel va a estar; en una
+  maquina sin .env el build falla con ese mensaje.
+
+LO QUE SIGUE SIN PROBARSE (IMPORTANTE)
+
+  La subida real del comprobante (T6) nunca se ejecuto de punta a punta: en
+  desarrollo no hay proyecto de Supabase. Es lo PRIMERO que hay que probar al
+  crear el proyecto: una foto y un PDF, desde un celular, y verlos despues en
+  el panel. Incluye crear el bucket privado "receipts".
+
+PENDIENTES QUE QUEDAN
+
+  P3 - Aviso automatico de rechazo (hoy: boton de WhatsApp de un toque).
+  P8 - Alias real de pago de MercadoLibre (variable PAYMENT_ALIAS).
+  P9 - Como sube la duena la imagen del evento (hoy los eventos no tienen
+       foto; el resto del evento se administra desde el panel).
+  - Despliegue: proyecto de Supabase (base + bucket "receipts") y Vercel.
 
 ===============================================================================
