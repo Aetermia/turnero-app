@@ -105,6 +105,13 @@ export function FloralGarland() {
       >
         <Cluster />
       </svg>
+      <svg
+        viewBox="0 0 230 72"
+        preserveAspectRatio="xMaxYMax slice"
+        className="absolute bottom-0 left-[calc(50%+150px)] hidden aspect-[230/72] h-full -translate-x-1/2 lg:block"
+      >
+        <Cluster />
+      </svg>
     </div>
   );
 }
