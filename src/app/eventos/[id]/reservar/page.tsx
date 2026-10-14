@@ -9,6 +9,7 @@ import {
   formatPrice,
 } from "@/lib/format";
 import { RESERVATION_HOLD_MINUTES } from "@/lib/reservations";
+import { themeTone } from "@/lib/theme-tone";
 
 /*
  * Same reasoning as the event detail page: this route awaits `params` and the
@@ -33,37 +34,38 @@ export default async function ReservationPage({
       <BackLink href={`/eventos/${event.id}`}>Volver al evento</BackLink>
 
       <header className="mt-6 flex flex-col gap-2">
-        <span className="text-xs font-semibold uppercase tracking-wide text-accent-600">
-          Reserva
-        </span>
+        <p className="text-xs font-semibold uppercase tracking-wide text-accent-600">
+          Paso 1 de 2 · Tus datos
+        </p>
         <h1 className="font-display text-3xl font-semibold leading-tight text-brand-900 sm:text-4xl">
-          Reservá tu lugar
+          Completá tus datos
         </h1>
         <p className="text-ink-soft">
-          Te guardamos el lugar por {RESERVATION_HOLD_MINUTES} minutos mientras
-          coordinás la transferencia.
+          Al enviarlos te guardamos el lugar por {RESERVATION_HOLD_MINUTES}{" "}
+          minutos. En el paso 2 hacés la transferencia y subís el comprobante.
         </p>
       </header>
 
-      <dl className="mt-6 grid grid-cols-1 gap-4 rounded-lg border border-brand-100 bg-white p-5 text-sm sm:grid-cols-3">
-        <div className="flex flex-col gap-0.5">
-          <dt className="font-semibold text-brand-700">Evento</dt>
-          <dd className="text-ink">{event.title}</dd>
-        </div>
-        <div className="flex flex-col gap-0.5">
-          <dt className="font-semibold text-brand-700">Fecha y hora</dt>
-          <dd className="text-ink">
-            {capitalizeFirst(formatEventDate(event.startsAt))} ·{" "}
-            {formatEventTimeRange(event.startsAt, event.endsAt)}
-          </dd>
-        </div>
-        <div className="flex flex-col gap-0.5">
-          <dt className="font-semibold text-brand-700">Precio</dt>
-          <dd className="font-semibold text-ink">{formatPrice(event.price)}</dd>
-        </div>
-      </dl>
+      <section
+        aria-label="Evento elegido"
+        className={`mt-6 flex flex-col gap-1 rounded-lg border border-brand-100 p-5 ${themeTone(event.theme).surface}`}
+      >
+        <p className="font-display text-xl font-semibold leading-tight text-brand-900">
+          {event.title}
+        </p>
+        <p className="text-sm text-ink-soft">
+          {capitalizeFirst(formatEventDate(event.startsAt))} ·{" "}
+          {formatEventTimeRange(event.startsAt, event.endsAt)}
+        </p>
+        <p className="text-sm font-semibold text-brand-700">
+          {formatPrice(event.price)}
+        </p>
+      </section>
 
-      <ReservationForm eventId={event.id} />
+      <ReservationForm
+        eventId={event.id}
+        holdMinutes={RESERVATION_HOLD_MINUTES}
+      />
     </div>
   );
 }

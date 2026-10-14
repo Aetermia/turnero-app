@@ -5,6 +5,7 @@ import {
   createReservationAction,
   type ReservationFormState,
 } from "@/app/eventos/[id]/reservar/actions";
+import { ReservationTerms } from "@/components/reservation-terms";
 
 const initialState: ReservationFormState = { fieldErrors: {}, formError: null };
 
@@ -25,7 +26,27 @@ function FieldError({ id, message }: { id: string; message?: string }) {
   );
 }
 
-export function ReservationForm({ eventId }: { eventId: string }) {
+function FieldHint({
+  id,
+  children,
+}: {
+  id: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <p id={id} className="text-sm text-ink-soft">
+      {children}
+    </p>
+  );
+}
+
+export function ReservationForm({
+  eventId,
+  holdMinutes,
+}: {
+  eventId: string;
+  holdMinutes: number;
+}) {
   const [state, formAction, pending] = useActionState(
     createReservationAction,
     initialState,
@@ -85,8 +106,11 @@ export function ReservationForm({ eventId }: { eventId: string }) {
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="whatsapp" className="font-semibold text-brand-800">
-          WhatsApp
+          Número de teléfono
         </label>
+        <FieldHint id="whatsapp-hint">
+          Te escribimos por WhatsApp a este número para confirmar tu lugar.
+        </FieldHint>
         <input
           id="whatsapp"
           name="whatsapp"
@@ -94,17 +118,26 @@ export function ReservationForm({ eventId }: { eventId: string }) {
           inputMode="tel"
           required
           autoComplete="tel"
+          placeholder="Ej: 2494 15 123456"
           className={inputClass}
           aria-invalid={errors.whatsapp ? true : undefined}
-          aria-describedby={errors.whatsapp ? "whatsapp-error" : undefined}
+          aria-describedby={
+            errors.whatsapp ? "whatsapp-hint whatsapp-error" : "whatsapp-hint"
+          }
         />
         <FieldError id="whatsapp-error" message={errors.whatsapp} />
       </div>
 
-      <fieldset className="flex flex-col gap-2">
+      <fieldset
+        className="flex flex-col gap-2"
+        aria-describedby="hasHealthCondition-hint"
+      >
         <legend className="font-semibold text-brand-800">
           ¿Tenés alguna condición de salud que debamos tener en cuenta?
         </legend>
+        <FieldHint id="hasHealthCondition-hint">
+          Por ejemplo: celiaquía, diabetes, alergias o movilidad reducida.
+        </FieldHint>
         <label className="flex items-center gap-2 text-ink">
           <input
             type="radio"
@@ -183,10 +216,23 @@ export function ReservationForm({ eventId }: { eventId: string }) {
               }
             />
             <label htmlFor="acceptedTerms" className="text-sm text-ink">
-              Acepto los términos y condiciones de la reserva.
+              Leí y acepto los términos y condiciones de la reserva.
             </label>
           </div>
           <FieldError id="acceptedTerms-error" message={errors.acceptedTerms} />
+          <details className="group ml-8 mt-1">
+            <summary className="w-fit cursor-pointer text-sm font-medium text-brand-700 underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">
+              <span className="group-open:hidden">
+                Ver términos y condiciones
+              </span>
+              <span className="hidden group-open:inline">
+                Ocultar términos y condiciones
+              </span>
+            </summary>
+            <div className="mt-3">
+              <ReservationTerms holdMinutes={holdMinutes} />
+            </div>
+          </details>
         </div>
 
         <div className="flex items-start gap-3">
@@ -197,18 +243,24 @@ export function ReservationForm({ eventId }: { eventId: string }) {
             className={checkboxClass}
           />
           <label htmlFor="marketingConsent" className="text-sm text-ink">
-            Quiero recibir novedades y próximos eventos por email. (opcional)
+            Quiero recibir novedades y próximos eventos por email (opcional).
           </label>
         </div>
       </div>
 
-      <button
-        type="submit"
-        disabled={pending}
-        className="inline-flex min-h-12 w-full items-center justify-center rounded-md bg-brand-700 px-5 font-semibold text-white transition-colors hover:bg-brand-800 disabled:cursor-not-allowed disabled:bg-brand-200 disabled:text-brand-800 sm:w-auto sm:px-8"
-      >
-        {pending ? "Enviando…" : "Reservar mi lugar"}
-      </button>
+      <div className="flex flex-col gap-2">
+        <button
+          type="submit"
+          disabled={pending}
+          className="inline-flex min-h-12 w-full items-center justify-center rounded-md bg-brand-700 px-5 font-semibold text-white transition-colors hover:bg-brand-800 disabled:cursor-not-allowed disabled:bg-brand-200 disabled:text-brand-800 sm:w-auto sm:px-8"
+        >
+          {pending ? "Enviando…" : "Continuar al pago"}
+        </button>
+        <p className="text-sm text-ink-soft">
+          En el siguiente paso vas a ver el alias para transferir y subir el
+          comprobante.
+        </p>
+      </div>
     </form>
   );
 }
