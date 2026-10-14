@@ -7,7 +7,11 @@ import { z } from "zod";
 import { db } from "@/db";
 import { events, reservations } from "@/db/schema";
 import { effectiveStatusSql } from "@/lib/reservations";
-import { ALLOWED_RECEIPT_MIME_TYPES, MAX_RECEIPT_FILE_SIZE } from "@/lib/receipt";
+import {
+  ALLOWED_RECEIPT_MIME_TYPES,
+  MAX_RECEIPT_FILE_SIZE,
+  RECEIPT_FORMATS_LABEL,
+} from "@/lib/receipt";
 import { createSignedUploadUrl } from "@/lib/storage";
 
 export type UploadUrlFormState = {
@@ -25,7 +29,7 @@ export type UploadUrlFormState = {
 const uploadUrlSchema = z.object({
   token: z.string().min(1, "Token de reserva inválido"),
   contentType: z.enum(ALLOWED_RECEIPT_MIME_TYPES, {
-    message: "Formato de imagen no soportado. Permitidos: JPG, PNG, WEBP, HEIC",
+    message: `Formato no soportado. Permitidos: ${RECEIPT_FORMATS_LABEL}`,
   }),
   fileSize: z.number().min(1, "Archivo vacío").max(MAX_RECEIPT_FILE_SIZE, "El archivo supera los 8MB"),
   fileName: z.string().min(1),
@@ -131,9 +135,12 @@ export async function getSignedUploadUrl(
       data: signed,
     };
   } catch (error) {
+    // The storage error can name server configuration; the person on the
+    // public page only needs to know it is worth trying again.
+    console.error("Failed to create signed upload URL", error);
     return {
       fieldErrors: {},
-      formError: error instanceof Error ? error.message : "Error al generar URL de subida",
+      formError: "No pudimos preparar la subida del comprobante. Probá de nuevo en unos minutos.",
       success: false,
       data: null,
     };
@@ -161,7 +168,7 @@ const completeReservationSchema = z.object({
   transferReference: z.string().trim().min(1, "Ingresá el número de operación"),
   receiptPath: z.string().min(1, "Falta el comprobante subido"),
   receiptMimeType: z.enum(ALLOWED_RECEIPT_MIME_TYPES, {
-    message: "Formato de imagen no soportado",
+    message: "Formato de comprobante no soportado",
   }),
 });
 

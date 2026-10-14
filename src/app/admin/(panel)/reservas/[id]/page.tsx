@@ -13,6 +13,7 @@ import {
   type ReservationStatus,
   getReservationForAdminById,
 } from "@/lib/reservations";
+import { isPdfReceipt } from "@/lib/receipt";
 import { createSignedReceiptUrl } from "@/lib/storage";
 import {
   buildReservationWhatsAppMessage,
@@ -287,14 +288,22 @@ export default async function AdminReservationDetailPage({
               rel="noreferrer"
               className="inline-flex min-h-10 w-fit items-center justify-center rounded-md border border-brand-200 px-3 text-sm font-medium text-brand-700 transition-colors hover:bg-brand-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
             >
-              Abrir en una pestaña nueva
+              {isPdfReceipt(reservation.receiptMimeType)
+                ? "Abrir el PDF en una pestaña nueva"
+                : "Abrir en una pestaña nueva"}
             </a>
-            {/* eslint-disable-next-line @next/next/no-img-element -- the URL is a short-lived signed link from a private bucket, so next/image optimization does not apply */}
-            <img
-              src={receiptUrl}
-              alt="Comprobante de la transferencia"
-              className="max-h-[32rem] w-full rounded-md border border-brand-100 object-contain"
-            />
+            {isPdfReceipt(reservation.receiptMimeType) ? (
+              <p className="text-sm text-ink-soft">
+                El comprobante es un PDF: abrilo con el botón de arriba.
+              </p>
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element -- the URL is a short-lived signed link from a private bucket, so next/image optimization does not apply
+              <img
+                src={receiptUrl}
+                alt="Comprobante de la transferencia"
+                className="max-h-[32rem] w-full rounded-md border border-brand-100 object-contain"
+              />
+            )}
             {reservation.receiptUploadedAt ? (
               <p className="text-xs text-ink-soft">
                 Subido el {formatDateTime(reservation.receiptUploadedAt)}.

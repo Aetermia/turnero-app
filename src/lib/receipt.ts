@@ -14,9 +14,17 @@ export const ALLOWED_RECEIPT_MIME_TYPES = [
   "image/png",
   "image/webp",
   "image/heic",
+  // Banking apps usually hand out the transfer receipt as a PDF.
+  "application/pdf",
 ] as const;
 
 export const MAX_RECEIPT_FILE_SIZE = 8 * 1024 * 1024; // 8MB
+
+export const RECEIPT_FORMATS_LABEL = "JPG, PNG, WEBP, HEIC o PDF";
+
+export function isPdfReceipt(mimeType: string | null): boolean {
+  return mimeType === "application/pdf";
+}
 
 export function isAllowedReceiptMimeType(
   value: string,

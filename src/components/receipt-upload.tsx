@@ -3,7 +3,18 @@
 import { useActionState, useEffect, useRef, useState } from "react";
 import { completeReservationAction, getSignedUploadUrl } from "@/app/reservas/[token]/actions";
 import type { UploadUrlFormState, CompleteReservationFormState } from "@/app/reservas/[token]/actions";
-import { isAllowedReceiptMimeType, MAX_RECEIPT_FILE_SIZE } from "@/lib/receipt";
+import {
+  ALLOWED_RECEIPT_MIME_TYPES,
+  isAllowedReceiptMimeType,
+  isPdfReceipt,
+  MAX_RECEIPT_FILE_SIZE,
+  RECEIPT_FORMATS_LABEL,
+} from "@/lib/receipt";
+
+// Shown for any failed transfer: on a phone the cause is almost always the
+// network, and the person needs to know the retry button is the way out.
+const UPLOAD_FAILED_MESSAGE =
+  "No pudimos subir el comprobante. Revisá tu conexión y tocá «Reintentar».";
 
 export type ReceiptUploadProps = {
   token: string;
@@ -68,7 +79,7 @@ export function ReceiptUpload({ token, eventPrice }: ReceiptUploadProps) {
           });
 
           if (!response.ok) {
-            throw new Error(`Error al subir archivo: ${response.statusText}`);
+            throw new Error(`Upload failed with status ${response.status}`);
           }
 
           setUploadState((prev) => ({
@@ -79,10 +90,11 @@ export function ReceiptUpload({ token, eventPrice }: ReceiptUploadProps) {
             receiptMimeType: data.contentType,
           }));
         } catch (error) {
+          console.error(error);
           setUploadState((prev) => ({
             ...prev,
             uploading: false,
-            error: error instanceof Error ? error.message : "Error al subir archivo",
+            error: UPLOAD_FAILED_MESSAGE,
           }));
         }
       };
@@ -91,6 +103,10 @@ export function ReceiptUpload({ token, eventPrice }: ReceiptUploadProps) {
   }, [uploadUrlState]);
 
   const compressImage = async (file: File): Promise<File> => {
+    // A PDF cannot go through the canvas; it is uploaded as-is.
+    if (isPdfReceipt(file.type)) {
+      return file;
+    }
     // If already small and JPEG, return as-is
     if (file.size < 1024 * 1024 && file.type === "image/jpeg") {
       return file;
@@ -156,7 +172,7 @@ export function ReceiptUpload({ token, eventPrice }: ReceiptUploadProps) {
     if (!isAllowedReceiptMimeType(file.type)) {
       setUploadState((prev) => ({
         ...prev,
-        error: "Formato no soportado. Permitidos: JPG, PNG, WEBP, HEIC",
+        error: `Formato no soportado. Permitidos: ${RECEIPT_FORMATS_LABEL}`,
       }));
       return;
     }
@@ -171,22 +187,22 @@ export function ReceiptUpload({ token, eventPrice }: ReceiptUploadProps) {
 
     setUploadState((prev) => ({ ...prev, error: null }));
 
+    let prepared: File;
     try {
-      const compressed = await compressImage(file);
-      compressedFileRef.current = compressed;
-
-      const previewUrl = URL.createObjectURL(compressed);
-      setUploadState((prev) => ({
-        ...prev,
-        file: compressed,
-        previewUrl,
-      }));
+      prepared = await compressImage(file);
     } catch (error) {
-      setUploadState((prev) => ({
-        ...prev,
-        error: error instanceof Error ? error.message : "Error al procesar imagen",
-      }));
+      // Some browsers cannot decode every format (HEIC outside Safari). The
+      // original already passed the type and size checks, so send it as-is.
+      console.error(error);
+      prepared = file;
     }
+    compressedFileRef.current = prepared;
+
+    setUploadState((prev) => ({
+      ...prev,
+      file: prepared,
+      previewUrl: isPdfReceipt(prepared.type) ? null : URL.createObjectURL(prepared),
+    }));
   };
 
   const handleGetUploadUrl = (formData: FormData) => {
@@ -214,14 +230,18 @@ export function ReceiptUpload({ token, eventPrice }: ReceiptUploadProps) {
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/jpeg,image/png,image/webp,image/heic"
+            accept={ALLOWED_RECEIPT_MIME_TYPES.join(",")}
             onChange={handleFileChange}
             className="mt-1 block w-full text-sm text-ink"
             disabled={uploadState.uploaded || uploadUrlPending || uploadState.uploading}
           />
           <p className="mt-1 text-xs text-ink-soft">
-            Permitidos: JPG, PNG, WEBP, HEIC. Máximo 8MB (se comprimirá automáticamente)
+            Permitidos: {RECEIPT_FORMATS_LABEL}. Máximo 8MB. Las fotos se
+            comprimen automáticamente.
           </p>
+          {uploadState.file && isPdfReceipt(uploadState.file.type) && (
+            <p className="mt-2 text-sm text-ink">PDF seleccionado: {uploadState.file.name}</p>
+          )}
           {uploadState.previewUrl && (
             <div className="mt-2">
               <img
@@ -233,19 +253,26 @@ export function ReceiptUpload({ token, eventPrice }: ReceiptUploadProps) {
           )}
         </div>
 
-        {compressedFileRef.current && !uploadState.uploaded && (
+        {uploadState.file && !uploadState.uploaded && (
           <button
             type="submit"
             disabled={uploadUrlPending || uploadState.uploading}
             className="rounded-md bg-brand-700 px-4 py-2 text-sm font-medium text-white hover:bg-brand-800 disabled:opacity-50"
           >
-            {uploadUrlPending || uploadState.uploading ? "Subiendo..." : "Subir comprobante"}
+            {uploadUrlPending || uploadState.uploading
+              ? "Subiendo..."
+              : uploadState.error || uploadUrlState.formError
+                ? "Reintentar"
+                : "Subir comprobante"}
           </button>
         )}
 
-        {(uploadState.error || uploadUrlState.formError) && (
-          <p className="text-sm text-red-600">
-            {uploadState.error || uploadUrlState.formError}
+        {(uploadState.error || uploadUrlState.formError || uploadUrlState.fieldErrors.contentType || uploadUrlState.fieldErrors.fileSize) && (
+          <p role="alert" className="text-sm text-red-600">
+            {uploadState.error ||
+              uploadUrlState.formError ||
+              uploadUrlState.fieldErrors.contentType ||
+              uploadUrlState.fieldErrors.fileSize}
           </p>
         )}
       </form>
