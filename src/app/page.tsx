@@ -40,7 +40,7 @@ export default function Home() {
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-8">
       <section className="mb-6 flex flex-col gap-2">
-        <h1 className="text-2xl font-bold text-brand-900 sm:text-3xl">
+        <h1 className="font-display text-4xl font-semibold text-brand-900 sm:text-5xl">
           Próximos eventos
         </h1>
         <p className="text-ink-soft">

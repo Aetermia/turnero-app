@@ -1,8 +1,15 @@
 import Link from "next/link";
+import { BackLink } from "@/components/back-link";
 import { notFound } from "next/navigation";
 import type { EventWithSeats } from "@/lib/events";
 import { getPublishedEventById } from "@/lib/events";
-import { formatEventDate, formatEventTime, formatPrice } from "@/lib/format";
+import {
+  capitalizeFirst,
+  formatEventDate,
+  formatEventTimeRange,
+  formatPrice,
+} from "@/lib/format";
+import { themeTone } from "@/lib/theme-tone";
 
 /*
  * This route is allowed to block: it awaits `params` and the live seat count
@@ -29,7 +36,7 @@ function EventDetail({ event }: { event: EventWithSeats }) {
             {event.theme}
           </span>
         ) : null}
-        <h1 className="text-2xl font-bold leading-snug text-brand-900 sm:text-3xl">
+        <h1 className="font-display text-3xl font-semibold leading-tight text-brand-900 sm:text-4xl">
           {event.title}
         </h1>
       </header>
@@ -38,15 +45,19 @@ function EventDetail({ event }: { event: EventWithSeats }) {
         <p className="text-ink-soft">{event.description}</p>
       ) : null}
 
-      <dl className="grid grid-cols-1 gap-4 rounded-lg border border-brand-100 bg-white p-5 text-sm sm:grid-cols-2">
+      <dl
+        className={`grid grid-cols-1 gap-4 rounded-lg border border-brand-100 p-5 text-sm sm:grid-cols-2 ${themeTone(event.theme).surface}`}
+      >
         <div className="flex flex-col gap-0.5">
           <dt className="font-semibold text-brand-700">Fecha</dt>
-          <dd className="capitalize text-ink">{formatEventDate(event.startsAt)}</dd>
+          <dd className="text-ink">
+            {capitalizeFirst(formatEventDate(event.startsAt))}
+          </dd>
         </div>
         <div className="flex flex-col gap-0.5">
           <dt className="font-semibold text-brand-700">Horario</dt>
           <dd className="text-ink">
-            {formatEventTime(event.startsAt)} a {formatEventTime(event.endsAt)}
+            {formatEventTimeRange(event.startsAt, event.endsAt)}
           </dd>
         </div>
         {event.location ? (
@@ -100,7 +111,9 @@ function EventDetail({ event }: { event: EventWithSeats }) {
   );
 }
 
-export default async function EventPage({ params }: PageProps<"/eventos/[id]">) {
+export default async function EventPage({
+  params,
+}: PageProps<"/eventos/[id]">) {
   const { id } = await params;
   const event = await getPublishedEventById(id);
 
@@ -119,7 +132,8 @@ export default async function EventPage({ params }: PageProps<"/eventos/[id]">) 
   }
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 py-8">
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-8">
+      <BackLink href="/">Volver al inicio</BackLink>
       <EventDetail event={event} />
     </div>
   );

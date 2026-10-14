@@ -1,6 +1,12 @@
 import Link from "next/link";
 import type { EventWithSeats } from "@/lib/events";
-import { formatEventDate, formatEventTime, formatPrice } from "@/lib/format";
+import {
+  capitalizeFirst,
+  formatEventDate,
+  formatEventTimeRange,
+  formatPrice,
+} from "@/lib/format";
+import { themeTone } from "@/lib/theme-tone";
 
 /**
  * Presentational card for one event in the public catalog. The whole card is a
@@ -12,7 +18,7 @@ export function EventCard({ event }: { event: EventWithSeats }) {
   return (
     <Link
       href={`/eventos/${event.id}`}
-      className="group flex h-full flex-col gap-3 rounded-lg border border-brand-100 bg-white p-5 shadow-sm transition-colors hover:border-brand-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
+      className={`group flex h-full flex-col gap-3 rounded-lg border border-brand-100 p-5 shadow-sm ${themeTone(event.theme).surface} transition-shadow hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600`}
     >
       <header className="flex flex-col gap-1">
         {event.theme ? (
@@ -20,7 +26,7 @@ export function EventCard({ event }: { event: EventWithSeats }) {
             {event.theme}
           </span>
         ) : null}
-        <h2 className="text-lg font-semibold leading-snug text-brand-900">
+        <h2 className="font-display text-2xl font-semibold leading-tight text-brand-900">
           {event.title}
         </h2>
       </header>
@@ -28,9 +34,9 @@ export function EventCard({ event }: { event: EventWithSeats }) {
       <dl className="flex flex-col gap-1 text-sm text-ink-soft">
         <div>
           <dt className="sr-only">Fecha y hora</dt>
-          <dd className="capitalize">
-            {formatEventDate(event.startsAt)},{" "}
-            {formatEventTime(event.startsAt)} a {formatEventTime(event.endsAt)}
+          <dd>
+            {capitalizeFirst(formatEventDate(event.startsAt))} ·{" "}
+            {formatEventTimeRange(event.startsAt, event.endsAt)}
           </dd>
         </div>
         {event.location ? (

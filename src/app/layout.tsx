@@ -1,11 +1,22 @@
 import type { Metadata } from "next";
 import Image from "next/image";
-import { Montserrat } from "next/font/google";
+import Link from "next/link";
+import { Cormorant_Garamond, Montserrat } from "next/font/google";
+import { FloralGarland } from "@/components/floral-garland";
+import { SiteFooter } from "@/components/site-footer";
 import "./globals.css";
 
 const montserrat = Montserrat({
   variable: "--font-montserrat",
   subsets: ["latin"],
+});
+
+// Classic serif for headings, echoing the "CASA de ANTÓN" lettering of the
+// brand. Body text stays in Montserrat, which reads better at small sizes.
+const cormorant = Cormorant_Garamond({
+  variable: "--font-cormorant",
+  subsets: ["latin"],
+  weight: ["500", "600", "700"],
 });
 
 export const metadata: Metadata = {
@@ -16,29 +27,36 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="es" className={`${montserrat.variable} h-full antialiased`}>
+    <html
+      lang="es"
+      className={`${montserrat.variable} ${cormorant.variable} h-full antialiased`}
+    >
       <body className="flex min-h-full flex-col bg-paper text-ink">
-        <header className="border-b border-brand-100 bg-paper">
-          <div className="mx-auto flex w-full max-w-3xl items-center gap-3 px-4 py-3">
-            <Image
-              src="/logo.webp"
-              alt="Casa de Antón"
-              width={562}
-              height={262}
-              className="h-9 w-auto"
-              loading="eager"
-            />
-            <span className="text-lg font-semibold text-brand-800">
-              Casa de Antón
-            </span>
+        <header className="relative border-b border-brand-100 bg-paper">
+          <FloralGarland />
+          <div className="relative flex w-full items-center px-4 py-4 sm:px-6">
+            <Link
+              href="/"
+              className="flex items-center gap-3 rounded-md focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-600"
+            >
+              <Image
+                src="/logo.webp"
+                alt="Casa de Antón"
+                width={562}
+                height={262}
+                className="h-9 w-auto"
+                loading="eager"
+              />
+              <span className="font-display text-xl font-semibold text-brand-800 sm:text-2xl">
+                Casa de Antón
+              </span>
+            </Link>
           </div>
         </header>
 
         <main className="flex flex-1 flex-col">{children}</main>
 
-        <footer className="border-t border-brand-100 bg-paper py-6 text-center text-sm text-ink-soft">
-          Casa de Antón · Talleres y eventos
-        </footer>
+        <SiteFooter />
       </body>
     </html>
   );

@@ -24,6 +24,16 @@
   --color-accent-600: #C25680;
   --color-accent-700: #A8436B;
 
+  /* Soft pastel tones for event themes, from the brand illustrations */
+  --color-celeste-50: #F4F8FC;
+  --color-celeste-300: #BCD3EA;
+  --color-salvia-50: #F4F8F2;
+  --color-salvia-300: #C3D6BD;
+  --color-coral-50: #FDF5F3;
+  --color-coral-300: #F1C4BA;
+  --color-arena-50: #FBF7EE;
+  --color-arena-300: #E6D6AE;
+
   /* Neutrals */
   --color-paper: #FCF8F5; /* the cream background baked into the logo */
   --color-ink: #1B2130;
@@ -37,6 +47,7 @@
  */
 @theme inline {
   --font-sans: var(--font-montserrat);
+  --font-display: var(--font-cormorant);
 }
 
 body {

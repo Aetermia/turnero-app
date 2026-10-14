@@ -1,8 +1,13 @@
-import Link from "next/link";
+import { BackLink } from "@/components/back-link";
 import { notFound } from "next/navigation";
 import { ReservationForm } from "@/components/reservation-form";
 import { getPublishedEventById } from "@/lib/events";
-import { formatEventDate, formatEventTime, formatPrice } from "@/lib/format";
+import {
+  capitalizeFirst,
+  formatEventDate,
+  formatEventTimeRange,
+  formatPrice,
+} from "@/lib/format";
 import { RESERVATION_HOLD_MINUTES } from "@/lib/reservations";
 
 /*
@@ -25,18 +30,13 @@ export default async function ReservationPage({
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-8">
-      <Link
-        href={`/eventos/${event.id}`}
-        className="text-sm font-semibold text-brand-700 hover:underline"
-      >
-        ← Volver al evento
-      </Link>
+      <BackLink href={`/eventos/${event.id}`}>Volver al evento</BackLink>
 
-      <header className="mt-4 flex flex-col gap-2">
+      <header className="mt-6 flex flex-col gap-2">
         <span className="text-xs font-semibold uppercase tracking-wide text-accent-600">
           Reserva
         </span>
-        <h1 className="text-2xl font-bold leading-snug text-brand-900 sm:text-3xl">
+        <h1 className="font-display text-3xl font-semibold leading-tight text-brand-900 sm:text-4xl">
           Reservá tu lugar
         </h1>
         <p className="text-ink-soft">
@@ -52,10 +52,9 @@ export default async function ReservationPage({
         </div>
         <div className="flex flex-col gap-0.5">
           <dt className="font-semibold text-brand-700">Fecha y hora</dt>
-          <dd className="capitalize text-ink">
-            {formatEventDate(event.startsAt)},{" "}
-            {formatEventTime(event.startsAt)} a{" "}
-            {formatEventTime(event.endsAt)}
+          <dd className="text-ink">
+            {capitalizeFirst(formatEventDate(event.startsAt))} ·{" "}
+            {formatEventTimeRange(event.startsAt, event.endsAt)}
           </dd>
         </div>
         <div className="flex flex-col gap-0.5">
