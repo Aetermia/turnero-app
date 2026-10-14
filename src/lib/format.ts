@@ -15,10 +15,12 @@ const dateFormatter = new Intl.DateTimeFormat("es-AR", {
   month: "long",
 });
 
+// `h23` keeps the 24-hour clock Argentines read ("18:00"), not "06:00 p. m.".
 const timeFormatter = new Intl.DateTimeFormat("es-AR", {
   timeZone: BUENOS_AIRES,
   hour: "2-digit",
   minute: "2-digit",
+  hourCycle: "h23",
 });
 
 const currencyFormatter = new Intl.NumberFormat("es-AR", {
@@ -33,6 +35,7 @@ const dateTimeFormatter = new Intl.DateTimeFormat("es-AR", {
   year: "numeric",
   hour: "2-digit",
   minute: "2-digit",
+  hourCycle: "h23",
 });
 
 const isoDateFormatter = new Intl.DateTimeFormat("es-AR", {
@@ -42,14 +45,35 @@ const isoDateFormatter = new Intl.DateTimeFormat("es-AR", {
   year: "numeric",
 });
 
-/** e.g. "viernes 17 de octubre" — date in Buenos Aires time. */
+/**
+ * e.g. "viernes 17 de octubre" — date in Buenos Aires time. Lowercase so it
+ * reads naturally mid-sentence; capitalize it where it opens a line.
+ */
 export function formatEventDate(date: Date): string {
-  return dateFormatter.format(date);
+  return dateFormatter.format(date).replace(",", "");
 }
 
-/** e.g. "18:00" — local time in Buenos Aires. */
+/** "18" for a whole hour, "18:30" otherwise — Buenos Aires time. */
+function formatClock(date: Date): string {
+  const parts = timeFormatter.formatToParts(date);
+  const hour = parts.find((part) => part.type === "hour")?.value ?? "";
+  const minute = parts.find((part) => part.type === "minute")?.value ?? "00";
+  return minute === "00" ? String(Number(hour)) : `${Number(hour)}:${minute}`;
+}
+
+/** e.g. "18 hs" or "18:30 hs" — local time in Buenos Aires. */
 export function formatEventTime(date: Date): string {
-  return timeFormatter.format(date);
+  return `${formatClock(date)} hs`;
+}
+
+/** e.g. "18 a 20 hs" — an event's span in Buenos Aires time. */
+export function formatEventTimeRange(start: Date, end: Date): string {
+  return `${formatClock(start)} a ${formatClock(end)} hs`;
+}
+
+/** Capitalizes the first letter, for a date that opens a line or a label. */
+export function capitalizeFirst(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
 /** e.g. "17 de octubre de 2026, 18:00" — instant in Buenos Aires time. */

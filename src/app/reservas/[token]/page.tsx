@@ -1,6 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { formatEventDate, formatEventTime, formatPrice } from "@/lib/format";
+import {
+  capitalizeFirst,
+  formatEventDate,
+  formatEventTime,
+  formatPrice,
+} from "@/lib/format";
 import { getReservationByToken } from "@/lib/reservations";
 import { ReceiptUpload } from "@/components/receipt-upload";
 
@@ -35,7 +40,7 @@ export default async function ReservationStatusPage({
         <span className="text-xs font-semibold uppercase tracking-wide text-accent-600">
           Reserva
         </span>
-        <h1 className="text-2xl font-bold leading-snug text-brand-900 sm:text-3xl">
+        <h1 className="font-display text-3xl font-semibold leading-tight text-brand-900 sm:text-4xl">
           {effectiveStatus === "pending_no_receipt"
             ? "Te guardamos el lugar"
             : effectiveStatus === "pending_review"
@@ -94,8 +99,8 @@ export default async function ReservationStatusPage({
         </div>
         <div className="flex flex-col gap-0.5">
           <dt className="font-semibold text-brand-700">Fecha</dt>
-          <dd className="capitalize text-ink">
-            {formatEventDate(reservation.eventStartsAt)} a las{" "}
+          <dd className="text-ink">
+            {capitalizeFirst(formatEventDate(reservation.eventStartsAt))} a las{" "}
             {formatEventTime(reservation.eventStartsAt)}
           </dd>
         </div>

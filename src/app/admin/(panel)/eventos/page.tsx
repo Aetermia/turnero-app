@@ -1,6 +1,11 @@
 import Link from "next/link";
 import { listEventsForAdmin } from "@/lib/events";
-import { formatEventDate, formatEventTime, formatPrice } from "@/lib/format";
+import {
+  capitalizeFirst,
+  formatEventDate,
+  formatEventTimeRange,
+  formatPrice,
+} from "@/lib/format";
 import { toggleEventPublishedAction } from "./actions";
 
 /*
@@ -64,10 +69,9 @@ export default async function AdminEventsPage() {
                     {event.theme}
                   </span>
                 ) : null}
-                <span className="text-sm capitalize text-ink-soft">
-                  {formatEventDate(event.startsAt)},{" "}
-                  {formatEventTime(event.startsAt)} a{" "}
-                  {formatEventTime(event.endsAt)}
+                <span className="text-sm text-ink-soft">
+                  {capitalizeFirst(formatEventDate(event.startsAt))} ·{" "}
+                  {formatEventTimeRange(event.startsAt, event.endsAt)}
                 </span>
                 <span className="text-sm text-ink-soft">
                   {event.occupied} de {event.capacity} lugares ocupados ·{" "}

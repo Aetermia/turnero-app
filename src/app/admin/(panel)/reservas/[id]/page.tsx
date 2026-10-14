@@ -2,9 +2,10 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
+  capitalizeFirst,
   formatDateTime,
   formatEventDate,
-  formatEventTime,
+  formatEventTimeRange,
   formatIsoDate,
   formatPrice,
   formatReservationStatus,
@@ -208,11 +209,8 @@ export default async function AdminReservationDetailPage({
           <DataItem label="Temática">{event.theme || "-"}</DataItem>
           <DataItem label="Lugar">{event.location || "-"}</DataItem>
           <DataItem label="Fecha">
-            <span className="capitalize">
-              {formatEventDate(event.startsAt)}
-            </span>{" "}
-            de {formatEventTime(event.startsAt)} a{" "}
-            {formatEventTime(event.endsAt)}
+            {capitalizeFirst(formatEventDate(event.startsAt))} ·{" "}
+            {formatEventTimeRange(event.startsAt, event.endsAt)}
           </DataItem>
           <DataItem label="Precio por persona">
             {formatPrice(event.price)}
