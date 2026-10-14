@@ -59,5 +59,12 @@ if (isDirectRun) {
     console.error('Usage: node scripts/hash-admin-password.mjs "mi-password"');
     process.exit(1);
   }
-  console.log(`ADMIN_PASSWORD_HASH=${hashPassword(password)}`);
+  const hash = hashPassword(password);
+  // Next expands `$name` inside .env values, which would silently erase the
+  // salt and the hash. Escaping each `$` keeps the value intact in .env.
+  // Hosting dashboards (Vercel) do not expand variables: paste the raw value.
+  console.log("For .env:");
+  console.log(`ADMIN_PASSWORD_HASH=${hash.replaceAll("$", "\\$")}`);
+  console.log("For the Vercel dashboard:");
+  console.log(hash);
 }
