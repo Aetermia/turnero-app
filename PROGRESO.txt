@@ -1460,3 +1460,243 @@ PENDIENTES QUE QUEDAN
   - Despliegue: proyecto de Supabase (base + bucket "receipts") y Vercel.
 
 ===============================================================================
+
+===============================================================================
+22. FOTO DEL EVENTO, CATALOGO APILADO Y CRUD DESDE EL PANEL (14/10/2026)
+===============================================================================
+
+QUE SE CONSTRUYO
+
+  1. EL CATALOGO ES UNA SOLA COLUMNA. Antes era una grilla de dos columnas
+     con cards chicas. Ahora los eventos van uno debajo del otro y cada card
+     ocupa el ancho de la pagina.
+
+  2. LA FOTO DEL EVENTO VA ENTRE EL NOMBRE Y LOS DATOS, en proporcion 3:4.
+     Cuando el evento no tiene foto, el mismo espacio 3:4 queda ocupado por un
+     bloque de color: el tono 300 de la tematica del evento (Pintura,
+     Escritura, Charla, Ceramica...). Asi el ritmo de la lista no cambia y
+     nada se ve roto.
+
+  3. LA MISMA FOTO SE VE EN EL DETALLE del evento. Sin bloque de color: en una
+     pagina completa un rectangulo grande de color se leeria como un error.
+
+  4. LA DUENA PUEDE SUBIR, VER, REEMPLAZAR Y BORRAR LA FOTO del evento desde
+     la edicion, en el panel. El selector abre camara o galeria en el celular,
+     la imagen se comprime en el propio celular antes de subir y el archivo va
+     directo al almacenamiento: el peso no pasa por el servidor de la app.
+
+  5. FOTOS DE EJEMPLO. Se cargaron las dos imagenes de ejemplo que dejo el
+     usuario en public/:
+       Acuarelas.webp  -> Taller de acuarela para principiantes
+       Escritura.webp  -> Circulo de escritura creativa
+     logo.webp es el logo de la app, no una foto de evento: no se usa.
+
+DECISIONES QUE CONVIENEN ENTENDER
+
+  1. UNA SOLA FOTO POR EVENTO. Se reutiliza la columna events.image_url, que
+     ya existia y no se renderizaba en ningun lado. No hay tabla nueva ni
+     migracion.
+
+  2. EL BUCKET DE FOTOS DE EVENTO ES PUBLICO ("event-images"); el de
+     comprobantes SIGUE PRIVADO. Son cosas distintas: la foto del evento es
+     contenido que se publica en el catalogo, el comprobante es un dato
+     sensible que se sirve con una URL firmada que vence.
+
+  3. SE GUARDA LA URL PUBLICA COMPLETA, no el path dentro del bucket. Si se
+     guardara el path, el catalogo no podria armar la URL en desarrollo (donde
+     no hay proyecto de Supabase) y la home se romperia. Contrapartida: si el
+     proyecto de Supabase cambiara de host, las URLs viejas apuntarian al host
+     viejo.
+
+  4. LA FOTO NO SE PUEDE CARGAR EN EL ALTA (/admin/eventos/nuevo): el nombre
+     del archivo depende del id del evento, y en el alta el id todavia no
+     existe. Se carga editando el evento. Es una limitacion aceptada.
+
+  5. WEBP, JPEG Y PNG, hasta 8 MB, y la imagen se reduce a 1600 px de lado
+     mayor antes de subir. Un HEIC (lo que saca el iPhone por defecto) se
+     re-encoda solo si el navegador puede; si no puede, se sube tal cual y
+     puede no verse en algunos navegadores. Queda anotado.
+
+  6. LAS FOTOS DE EJEMPLO SE GUARDARON COMO RUTA LOCAL (/Acuarelas.webp), no
+     como URL de Supabase. Es a proposito: los archivos viven en public/ y los
+     sirve la propia app, asi el catalogo se ve completo en desarrollo sin
+     Supabase. Consecuencia: el panel no puede guardar una ruta local (su
+     validador solo acepta URLs del bucket), solo subir una foto de verdad.
+
+EL DEFECTO REAL QUE LA VERIFICACION ENCONTRO Y SE CORRIGIO
+
+  1. UNA URL DE CARPETA PASABA COMO FOTO VALIDA. La validacion del servidor
+     rechazaba una URL vacia y una con "..", pero aceptaba una que terminaba
+     en "/" (es decir, la carpeta del evento, no un archivo). Si eso pasaba,
+     la card intentaba dibujar una carpeta y mostraba imagen rota en lugar del
+     bloque de color. Corregido en src/lib/storage.ts.
+
+  2. UNA RUTA CON LA MAYUSCULA CAMBIADA. En la base estaba guardado
+     /escritura.webp y el archivo se llama Escritura.webp. En Windows se ve
+     bien; en Vercel, que es Linux, la imagen no apareceria NUNCA. Se corrigio
+     el dato y ahora el script de verificacion compara el nombre contra el
+     archivo real del disco, letra por letra, para que no vuelva a pasar.
+
+COMO SE VERIFICO
+
+  npx tsc --noEmit exit 0. npm run lint identico al baseline (1 error
+  preexistente en la pagina de reserva + 3 warnings; cero nuevos).
+  node scripts/verify-events-admin.mjs PASS. node scripts/verify-event-image.mjs
+  PASS (8 escenarios).
+  Render real contra el server de desarrollo: el catalogo trae las dos fotos,
+  el detalle de los dos eventos tambien, y tanto /Acuarelas.webp como
+  /Escritura.webp y sus URLs del optimizador responden 200.
+
+LO QUE SIGUE SIN PROBARSE (IMPORTANTE)
+
+  La subida real de la foto del evento nunca se ejecuto de punta a punta: en
+  desarrollo no hay proyecto de Supabase. Al crear el proyecto hay que crear el
+  bucket PUBLICO "event-images" y probar desde un celular: subir, reemplazar y
+  borrar. El bucket privado "receipts" sigue siendo lo otro que hay que probar.
+
+PENDIENTES QUE QUEDAN
+
+  P3 - Aviso automatico de rechazo (hoy: boton de WhatsApp de un toque).
+  P8 - Alias real de pago de MercadoLibre (variable PAYMENT_ALIAS).
+  - Cargar la foto tambien en la base de PRODUCCION: las dos fotos de ejemplo
+    se cargaron solo en la base local. En el despliegue hay que subirlas de
+    nuevo desde el panel (o copiar el valor de image_url).
+  - Quedan sin foto "Charla: cocina sin TACC en casa" y "Taller de ceramica"
+    (borrador). Muestran el bloque de color, que es el comportamiento previsto.
+  - Extraer la compresion de imagen a un modulo compartido: hoy el flujo de
+    comprobantes y el de la foto del evento la tienen duplicada, porque el de
+    comprobantes no se puede probar localmente y refactorizarlo seria a
+    ciegas.
+  - Despliegue: proyecto de Supabase (base + buckets "receipts" y
+    "event-images") y Vercel.
+
+===============================================================================
+
+===============================================================================
+23. LA FOTO DEL CATALOGO MAS CHICA Y LA FECHA EN NEGRITA (14/10/2026)
+===============================================================================
+
+  1. LA FOTO OCUPABA TODA LA PANTALLA. A ancho completo y con proporcion 3:4,
+     en una pantalla grande medía 736x981 px: un solo evento llenaba la
+     pantalla y habia que scrollear para ver el siguiente. Ahora ocupa dos
+     tercios del ancho de la card y va centrada. En pantalla grande queda en
+     491x654 y en un celular de 390 px en 239x318. La proporcion 3:4 no se
+     toca, y el bloque de color cuando no hay foto mide lo mismo que la foto.
+
+  2. LA FECHA Y EL HORARIO VAN EN NEGRITA en el catalogo, y en el color fuerte
+     en vez del gris suave: negrita sobre gris claro se leia embarrado.
+
+  NO SE TOCO la pagina de detalle: ahi la foto sigue a ancho completo y la
+  fecha sin negrita, porque el pedido era sobre el catalogo.
+
+  COMO SE VERIFICO
+
+  npx tsc --noEmit exit 0. npm run lint identico al baseline (1 error + 3
+  warnings, cero nuevos). Render contra el server de desarrollo: las 4 cards
+  salen con el bloque 3:4 a dos tercios y ninguna a ancho completo, las 4
+  fechas salen en negrita, y la imagen optimizada responde 200.
+
+===============================================================================
+
+===============================================================================
+24. LA FOTO DEL CATALOGO VUELVE A ANCHO COMPLETO (14/10/2026)
+===============================================================================
+
+  La reduccion a dos tercios del punto 23.1 no era lo pedido: dejaba la foto
+  flotando con espacio a los costados. La foto vuelve a ocupar todo el ancho
+  de la card, de borde a borde, y mantiene la proporcion 3:4. El atributo
+  "sizes" vuelve al valor que corresponde a ese ancho. La fecha en negrita se
+  mantiene: ese pedido no se toco.
+
+  QUEDA ANOTADO, porque importa para el proximo ajuste: a ancho completo y 3:4
+  la foto mide 736x981 px en pantalla grande, que es el tamaño que el usuario
+  habia llamado "muy grande". Si lo que molesta es la ALTURA, la palanca es el
+  ratio (por ejemplo 4:3), no el ancho: achicar el ancho ya se probo y se
+  rechazo.
+
+  COMO SE VERIFICO
+
+  npx tsc --noEmit exit 0. npm run lint identico al baseline. Render contra el
+  server de desarrollo: las 4 cards salen con el bloque 3:4 a ancho completo y
+  ninguna a dos tercios, las 4 fechas siguen en negrita, y la imagen optimizada
+  responde 200.
+
+===============================================================================
+
+===============================================================================
+25. CARDS MAS ANGOSTAS Y NAVBAR PEGADO ARRIBA (15/10/2026)
+===============================================================================
+
+  1. LAS CARDS SON MAS ANGOSTAS. En vez de seguir achicando la foto -que ya se
+     habia probado y rechazado-, se achico la columna entera del catalogo: de
+     768 px a 672 px de ancho. Asi el titulo, el texto de arriba y las cards
+     siguen alineados entre si, y la foto se achica sola sin tocar la
+     proporcion 3:4. El ancho de contenido de la card baja de 736 a 640 px y la
+     foto de 736x981 a 640x853 px.
+
+     Solo cambia la pagina de inicio. El detalle del evento, la reserva y el
+     panel siguen con el ancho de siempre, que es como esta hecho el resto del
+     sitio.
+
+  2. LA BARRA DE ARRIBA SIGUE EL SCROLL. El header ahora queda pegado al borde
+     superior cuando bajas. Dos detalles que ya estaban resueltos y por eso
+     funciono sin tocar nada mas: el header ya tenia su propio fondo, que es lo
+     que impide que los eventos se vean por detras, y no habia ningun otro
+     elemento con z-index en toda la app, asi que no habia con que chocar. Las
+     flores decorativas siguen dibujandose dentro del header y viajan con el.
+
+  CREDENCIALES DEL ADMIN
+
+  El usuario y la contrasena de desarrollo NO se escriben en este archivo: es
+  un archivo versionado y el repo guarda a proposito solo el hash, nunca la
+  contrasena. Los datos estan en .env (ADMIN_USER y ADMIN_PASSWORD_HASH) y se
+  los puede pedir al asistente en el chat.
+
+  Lo que SI quedo verificado, y es lo que importa: se hizo un POST real al
+  formulario de login del server de desarrollo con el par usuario/contrasena
+  vigente. Responde 303 (redirige a /admin) y entrega la cookie de sesion. Con
+  una contrasena incorrecta responde 303 a /admin/login?error=credentials y no
+  entrega cookie.
+
+  Si hay que cambiarla: node scripts/hash-admin-password.mjs "la-nueva" y pegar
+  el valor impreso en ADMIN_PASSWORD_HASH.
+
+  COMO SE VERIFICO
+
+  npx tsc --noEmit exit 0. npm run lint identico al baseline. Render contra el
+  server de desarrollo: el header sale pegado arriba, el catalogo con el ancho
+  nuevo, las 4 fotos a ancho completo, las 4 fechas en negrita, y el detalle
+  del evento sin cambios.
+
+===============================================================================
+
+===============================================================================
+26. TEXTO DEL BOTON DE LA CARD (15/10/2026)
+===============================================================================
+
+  El boton de la card del catalogo ahora dice "Mas información y reserva" en
+  lugar de "Reservar mi lugar". Un solo archivo, src/components/event-card.tsx.
+
+  DOS ACLARACIONES
+
+  1. Se escribio con tilde. El pedido vino tipeado "Mas", sin tilde, pero el
+     resto del sitio usa tildes correctas ("Proximos eventos", "Sin lugares
+     disponibles"), asi que dejarlo sin tilde habria sido una falta de
+     ortografia a la vista en el catalogo. Si se queria literal, se revierte.
+
+  2. La pagina de detalle del evento NO se toco: ahi sigue diciendo "Reservar
+     mi lugar". El pedido hablaba de la card, no del detalle.
+
+  El estado de evento lleno sigue diciendo "Evento completo", sin cambios.
+
+  COMO SE VERIFICO
+
+  npx tsc --noEmit exit 0. npm run lint identico al baseline. Render contra el
+  server de desarrollo: el catalogo no tiene ninguna ocurrencia del texto
+  viejo y si una del nuevo por cada card publicada. Las tildes llegan bien al
+  navegador (verificado por code points, no por lo que muestra la consola).
+
+  NOTA: el catalogo muestra 3 cards en vez de 4 porque se despublico "Smoke
+  test event" desde el panel durante la sesion. Lo cambio el usuario.
+
+===============================================================================

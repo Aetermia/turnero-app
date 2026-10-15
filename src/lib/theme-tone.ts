@@ -8,13 +8,27 @@
 export type ThemeTone = {
   /** Background tint and thin top band for a card or info box. */
   surface: string;
+  /** Solid tone for the box that stands in for a photo an event has not got. */
+  placeholder: string;
 };
 
 const TONES = {
-  celeste: { surface: "bg-celeste-50 border-t-[3px] border-t-celeste-300" },
-  salvia: { surface: "bg-salvia-50 border-t-[3px] border-t-salvia-300" },
-  coral: { surface: "bg-coral-50 border-t-[3px] border-t-coral-300" },
-  arena: { surface: "bg-arena-50 border-t-[3px] border-t-arena-300" },
+  celeste: {
+    surface: "bg-celeste-50 border-t-[3px] border-t-celeste-300",
+    placeholder: "bg-celeste-300",
+  },
+  salvia: {
+    surface: "bg-salvia-50 border-t-[3px] border-t-salvia-300",
+    placeholder: "bg-salvia-300",
+  },
+  coral: {
+    surface: "bg-coral-50 border-t-[3px] border-t-coral-300",
+    placeholder: "bg-coral-300",
+  },
+  arena: {
+    surface: "bg-arena-50 border-t-[3px] border-t-arena-300",
+    placeholder: "bg-arena-300",
+  },
 } satisfies Record<string, ThemeTone>;
 
 const KEYWORD_TONES: [RegExp, keyof typeof TONES][] = [

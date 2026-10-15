@@ -20,9 +20,9 @@ async function UpcomingEvents() {
   }
 
   return (
-    <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+    <ul className="flex flex-col gap-8">
       {upcoming.map((event) => (
-        <li key={event.id} className="h-full">
+        <li key={event.id}>
           <EventCard event={event} />
         </li>
       ))}
@@ -36,9 +36,16 @@ function UpcomingEventsFallback() {
   );
 }
 
+/*
+ * The page column is narrower than the shared max-w-3xl used by the other
+ * pages: the catalog cards hold a full width 3:4 photo, and at 3xl the photo
+ * pushed every event past the height of the screen. Narrowing the whole column
+ * keeps the heading, the intro and the cards aligned with each other and makes
+ * the photo smaller without changing its ratio.
+ */
 export default function Home() {
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 py-8">
+    <div className="mx-auto w-full max-w-2xl px-4 py-8">
       <section className="mb-6 flex flex-col gap-2">
         <h1 className="font-display text-4xl font-semibold text-brand-900 sm:text-5xl">
           Próximos eventos

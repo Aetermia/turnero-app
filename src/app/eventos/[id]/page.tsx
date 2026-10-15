@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { BackLink } from "@/components/back-link";
 import { notFound } from "next/navigation";
@@ -40,6 +41,18 @@ function EventDetail({ event }: { event: EventWithSeats }) {
           {event.title}
         </h1>
       </header>
+
+      {event.imageUrl ? (
+        <div className="relative aspect-[3/4] w-full overflow-hidden rounded-lg">
+          <Image
+            src={event.imageUrl}
+            alt=""
+            fill
+            sizes="(min-width: 800px) 736px, 100vw"
+            className="object-cover"
+          />
+        </div>
+      ) : null}
 
       {event.description ? (
         <p className="text-ink-soft">{event.description}</p>

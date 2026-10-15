@@ -3,8 +3,27 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getAdminSession } from "@/lib/auth";
+import {
+  EVENT_IMAGE_FORMATS_LABEL,
+  MAX_EVENT_IMAGE_FILE_SIZE,
+  eventImageExtension,
+  isAllowedEventImageMimeType,
+} from "@/lib/event-image";
 import { eventSchema } from "@/lib/event-schema";
-import { createEvent, setEventPublished, updateEvent } from "@/lib/events";
+import {
+  createEvent,
+  getEventForAdminById,
+  setEventImage,
+  setEventPublished,
+  updateEvent,
+} from "@/lib/events";
+import {
+  createEventImageUploadUrl,
+  deleteEventImageObject,
+  eventImagePathFromPublicUrl,
+  getEventImagePublicUrl,
+  isEventImagePublicUrlForEvent,
+} from "@/lib/storage";
 
 /*
  * Server Actions for the event CRUD. All writes go through here; there is no
@@ -143,4 +162,144 @@ export async function toggleEventPublishedAction(
   if (updated) {
     revalidatePath("/admin/eventos");
   }
+}
+
+/** State of the "upload a photo" step: the minted URL, or why there is none. */
+export type EventImageUploadState = {
+  uploadUrl: string | null;
+  publicUrl: string | null;
+  contentType: string | null;
+  error: string | null;
+};
+
+/** State of the "store the photo" step. */
+export type EventImageState = {
+  ok: boolean;
+  error: string | null;
+};
+
+/**
+ * Mints a short-lived upload URL for one event's photo.
+ *
+ * The browser then PUTs the file straight to Storage, so the photo never
+ * travels through the app server and the Server Action body limit stays out of
+ * the way. Signing still matters even though the bucket is public: it scopes
+ * the write to a single object path, and the service role key never leaves the
+ * server.
+ */
+export async function requestEventImageUploadAction(
+  _prevState: EventImageUploadState,
+  formData: FormData,
+): Promise<EventImageUploadState> {
+  const session = await getAdminSession();
+  if (!session) {
+    redirect("/admin/login");
+  }
+
+  const fail = (error: string): EventImageUploadState => ({
+    uploadUrl: null,
+    publicUrl: null,
+    contentType: null,
+    error,
+  });
+
+  const eventId = String(formData.get("eventId") ?? "");
+  const contentType = String(formData.get("contentType") ?? "");
+  const fileSize = Number(formData.get("fileSize") ?? 0);
+
+  if (!isAllowedEventImageMimeType(contentType)) {
+    return fail(
+      `Formato no soportado. Permitidos: ${EVENT_IMAGE_FORMATS_LABEL}`,
+    );
+  }
+
+  if (!Number.isFinite(fileSize) || fileSize <= 0) {
+    return fail("El archivo está vacío.");
+  }
+
+  if (fileSize > MAX_EVENT_IMAGE_FILE_SIZE) {
+    return fail("La foto supera los 8MB.");
+  }
+
+  // The event has to exist before anything is minted for it: the object path is
+  // built from its id, and a bad id must not be able to create its own folder.
+  const event = await getEventForAdminById(eventId);
+  if (!event) {
+    return fail("El evento ya no existe.");
+  }
+
+  try {
+    const signed = await createEventImageUploadUrl(
+      eventId,
+      contentType,
+      eventImageExtension(contentType),
+    );
+
+    return {
+      uploadUrl: signed.uploadUrl,
+      publicUrl: getEventImagePublicUrl(signed.path),
+      contentType: signed.contentType,
+      error: null,
+    };
+  } catch (error) {
+    // The storage error can name server configuration; the panel only needs to
+    // know that trying again is worth it.
+    console.error("Failed to create signed event image upload URL", error);
+    return fail("No pudimos preparar la subida. Probá de nuevo en unos minutos.");
+  }
+}
+
+/**
+ * Stores the public URL the browser got back after uploading, or clears the
+ * photo when the field arrives empty.
+ *
+ * The URL is validated again here, against our bucket and this event's folder.
+ * The browser is the one handing it back, and although only an admin reaches
+ * this action, a value pointing somewhere else must never reach the database.
+ */
+export async function setEventImageAction(
+  _prevState: EventImageState,
+  formData: FormData,
+): Promise<EventImageState> {
+  const session = await getAdminSession();
+  if (!session) {
+    redirect("/admin/login");
+  }
+
+  const eventId = String(formData.get("eventId") ?? "");
+  const rawUrl = String(formData.get("imageUrl") ?? "").trim();
+  const nextUrl = rawUrl.length > 0 ? rawUrl : null;
+
+  const event = await getEventForAdminById(eventId);
+  if (!event) {
+    return { ok: false, error: "El evento ya no existe." };
+  }
+
+  if (nextUrl !== null && !isEventImagePublicUrlForEvent(nextUrl, eventId)) {
+    return { ok: false, error: "La dirección de la foto no es válida." };
+  }
+
+  const saved = await setEventImage(eventId, nextUrl);
+  if (!saved) {
+    return { ok: false, error: "El evento ya no existe." };
+  }
+
+  /*
+   * The old object is removed only after the row already points at the new one,
+   * and only when it really changed. Deleting first would leave the event
+   * without a photo if the update failed.
+   */
+  if (event.imageUrl && event.imageUrl !== nextUrl) {
+    const previousPath = eventImagePathFromPublicUrl(event.imageUrl);
+    if (previousPath) {
+      await deleteEventImageObject(previousPath);
+    }
+  }
+
+  revalidatePath("/admin/eventos");
+  revalidatePath(`/admin/eventos/${eventId}`);
+  revalidatePath("/");
+  revalidatePath(`/eventos/${eventId}`);
+
+  return { ok: true, error: null };
 }
