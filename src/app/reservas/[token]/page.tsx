@@ -56,12 +56,8 @@ export default async function ReservationStatusPage({
         {isHeld ? (
           reservation.expiresAt ? (
             <p className="text-ink-soft">
-              Tenés tiempo hasta el{" "}
-              <strong className="text-ink">
-                {formatEventDate(reservation.expiresAt)} a las{" "}
-                {formatEventTime(reservation.expiresAt)}
-              </strong>{" "}
-              para transferir el pago. Pasado ese plazo, el lugar se libera solo.
+              Tu reserva queda pendiente una vez subido el comprobante de pago.
+              Una vez confirmado, se te avisará por WhatsApp.
             </p>
           ) : null
         ) : effectiveStatus === "pending_review" ? (
@@ -176,9 +172,6 @@ export default async function ReservationStatusPage({
         </Link>
       )}
 
-      <p className="mt-6 text-xs text-ink-soft">
-        Guardá este enlace: es la forma de consultar el estado de tu reserva.
-      </p>
     </div>
   );
 }

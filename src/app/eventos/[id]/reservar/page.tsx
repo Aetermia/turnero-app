@@ -40,10 +40,7 @@ export default async function ReservationPage({
         <h1 className="font-display text-3xl font-semibold leading-tight text-brand-900 sm:text-4xl">
           Completá tus datos
         </h1>
-        <p className="text-ink-soft">
-          Al enviarlos te guardamos el lugar por {RESERVATION_HOLD_MINUTES}{" "}
-          minutos. En el paso 2 hacés la transferencia y subís el comprobante.
-        </p>
+
       </header>
 
       <section

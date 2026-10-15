@@ -5,7 +5,6 @@ import {
   createReservationAction,
   type ReservationFormState,
 } from "@/app/eventos/[id]/reservar/actions";
-import { ReservationTerms } from "@/components/reservation-terms";
 
 const initialState: ReservationFormState = { fieldErrors: {}, formError: null };
 
@@ -202,39 +201,6 @@ export function ReservationForm({
       </fieldset>
 
       <div className="flex flex-col gap-4 rounded-lg border border-brand-100 bg-white p-5">
-        <div className="flex flex-col gap-1.5">
-          <div className="flex items-start gap-3">
-            <input
-              id="acceptedTerms"
-              name="acceptedTerms"
-              type="checkbox"
-              required
-              className={checkboxClass}
-              aria-invalid={errors.acceptedTerms ? true : undefined}
-              aria-describedby={
-                errors.acceptedTerms ? "acceptedTerms-error" : undefined
-              }
-            />
-            <label htmlFor="acceptedTerms" className="text-sm text-ink">
-              Leí y acepto los términos y condiciones de la reserva.
-            </label>
-          </div>
-          <FieldError id="acceptedTerms-error" message={errors.acceptedTerms} />
-          <details className="group ml-8 mt-1">
-            <summary className="w-fit cursor-pointer text-sm font-medium text-brand-700 underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">
-              <span className="group-open:hidden">
-                Ver términos y condiciones
-              </span>
-              <span className="hidden group-open:inline">
-                Ocultar términos y condiciones
-              </span>
-            </summary>
-            <div className="mt-3">
-              <ReservationTerms holdMinutes={holdMinutes} />
-            </div>
-          </details>
-        </div>
-
         <div className="flex items-start gap-3">
           <input
             id="marketingConsent"

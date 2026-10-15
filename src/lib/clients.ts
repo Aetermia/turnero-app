@@ -11,16 +11,20 @@ import { formatDateTime } from "@/lib/format";
  * through, including the T11 WhatsApp deep link) plus what that person
  * reserved.
  *
- * Health data and marketing consent are deliberately NOT selected here (Ley
- * 25.326): the list and the CSV are the owner's Rolodex, and the sensitive
+ * Health data is deliberately NOT selected here (Ley 25.326): the sensitive
  * field belongs behind the reservation detail page, same rule as the
- * reservations list.
+ * reservations list. Marketing consent IS selected: it is the flag that decides
+ * whether the page, the copy button and the CSV export may show the email at
+ * all. A client without consent keeps showing up (name, WhatsApp, reservations)
+ * but the email is hidden everywhere.
  */
 export type AdminClientListItem = {
   id: string;
   fullName: string;
   email: string;
   whatsapp: string;
+  /** True only when the person checked "Quiero recibir novedades..." on the reservation form. */
+  marketingConsent: boolean;
   totalReservations: number;
   activeReservations: number;
   lastReservationAt: Date | null;
@@ -70,6 +74,7 @@ export async function listClientsForAdmin(
       fullName: customers.fullName,
       email: customers.email,
       whatsapp: customers.whatsapp,
+      marketingConsent: customers.marketingConsent,
       totalReservations: sql<number>`count(*)::int`,
       activeReservations: sql<number>`(count(*) filter (where ${effectiveStatusSql} in ${OCCUPYING_STATUSES}))::int`,
       lastReservationAt: max(reservations.createdAt),
@@ -77,7 +82,13 @@ export async function listClientsForAdmin(
     .from(customers)
     .innerJoin(reservations, eq(reservations.customerId, customers.id))
     .where(searchCondition)
-    .groupBy(customers.id, customers.fullName, customers.email, customers.whatsapp)
+    .groupBy(
+      customers.id,
+      customers.fullName,
+      customers.email,
+      customers.whatsapp,
+      customers.marketingConsent,
+    )
     .orderBy(desc(max(reservations.createdAt)));
 }
 
@@ -109,7 +120,7 @@ export function toClientsCsv(rows: AdminClientListItem[]): string {
     lines.push(
       [
         csvField(row.fullName),
-        csvField(row.email),
+        csvField(row.marketingConsent ? row.email : "sin consentimiento"),
         csvField(row.whatsapp),
         csvField(String(row.totalReservations)),
         csvField(String(row.activeReservations)),

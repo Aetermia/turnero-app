@@ -117,7 +117,7 @@ function EventDetail({ event }: { event: EventWithSeats }) {
         <p className="text-sm text-ink-soft">
           {isFull
             ? "Este evento ya no tiene lugares disponibles."
-            : "Te guardamos el lugar por 30 minutos para que puedas transferir el pago."}
+            : "Reserva tu lugar antes de que se agoten."}
         </p>
       </div>
     </article>

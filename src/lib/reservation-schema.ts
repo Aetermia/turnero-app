@@ -30,13 +30,6 @@ export const reservationSchema = z
     hasHealthCondition: yesNoAnswer,
     // Free text. Required only when the answer is "yes"; ignored otherwise.
     healthCondition: z.string().trim().nullish(),
-    // An unchecked checkbox is not submitted at all, so the raw value is "on"
-    // when checked and null when not. Normalizing it here keeps the checkboxes
-    // as plain booleans below instead of leaking "on"/null into the caller.
-    acceptedTerms: z.preprocess(
-      (value) => value === "on" || value === true,
-      z.literal(true, "Tenés que aceptar los términos y condiciones"),
-    ),
     // Marketing consent is optional and must stay independent of the terms:
     // bundling both into one checkbox is not valid consent under Ley 25.326.
     marketingConsent: z.preprocess(

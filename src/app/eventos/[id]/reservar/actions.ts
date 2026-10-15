@@ -16,7 +16,6 @@ const FIELD_NAMES = [
   "whatsapp",
   "hasHealthCondition",
   "healthCondition",
-  "acceptedTerms",
   "marketingConsent",
 ] as const;
 
@@ -45,7 +44,6 @@ export async function createReservationAction(
     whatsapp: formData.get("whatsapp"),
     hasHealthCondition: formData.get("hasHealthCondition"),
     healthCondition: formData.get("healthCondition"),
-    acceptedTerms: formData.get("acceptedTerms"),
     marketingConsent: formData.get("marketingConsent"),
   });
 

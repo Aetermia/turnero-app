@@ -89,7 +89,11 @@ export default async function AdminClientsPage({
               Limpiar
             </Link>
           ) : null}
-          <CopyEmailsButton emails={clients.map((client) => client.email)} />
+          <CopyEmailsButton
+            emails={clients
+              .filter((client) => client.marketingConsent)
+              .map((client) => client.email)}
+          />
           <Link
             href={exportHref}
             className="inline-flex min-h-10 items-center justify-center rounded-md border border-brand-200 px-3 text-sm font-medium text-brand-700 transition-colors hover:bg-brand-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
@@ -116,7 +120,8 @@ export default async function AdminClientsPage({
                 {client.fullName}
               </span>
               <span className="text-sm text-ink-soft">
-                {client.email} · {client.whatsapp}
+                {client.marketingConsent ? client.email : "sin consentimiento"}{" "}
+                · {client.whatsapp}
               </span>
               <span className="text-sm text-ink-soft">
                 {client.totalReservations}{" "}
