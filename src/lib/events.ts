@@ -159,6 +159,7 @@ export type AdminEvent = {
   title: string;
   theme: string | null;
   description: string | null;
+  imageUrl: string | null;
   location: string | null;
   startsAt: Date;
   endsAt: Date;
@@ -174,6 +175,7 @@ const adminEventSelection = {
   title: events.title,
   theme: events.theme,
   description: events.description,
+  imageUrl: events.imageUrl,
   location: events.location,
   startsAt: events.startsAt,
   endsAt: events.endsAt,
@@ -188,6 +190,7 @@ type AdminEventRow = {
   title: string;
   theme: string | null;
   description: string | null;
+  imageUrl: string | null;
   location: string | null;
   startsAt: Date;
   endsAt: Date;
@@ -354,6 +357,31 @@ export async function setEventPublished(
   const updated = await db
     .update(events)
     .set({ isPublished, updatedAt: sql`now()` })
+    .where(eq(events.id, id))
+    .returning({ id: events.id });
+
+  return updated.length > 0;
+}
+
+/**
+ * Sets or clears the event photo. `imageUrl` is the public URL of the object in
+ * the event-images bucket, or `null` to leave the event without a photo.
+ *
+ * Only the image column changes, on purpose: a photo has nothing to do with the
+ * capacity rules, and it must not be able to touch them. Returns `false` when
+ * the id matches no event.
+ */
+export async function setEventImage(
+  id: string,
+  imageUrl: string | null,
+): Promise<boolean> {
+  if (!UUID_PATTERN.test(id)) {
+    return false;
+  }
+
+  const updated = await db
+    .update(events)
+    .set({ imageUrl, updatedAt: sql`now()` })
     .where(eq(events.id, id))
     .returning({ id: events.id });
 
