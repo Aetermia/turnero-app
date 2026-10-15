@@ -54,6 +54,9 @@ S10. Las cards del catálogo son más angostas que antes, y la columna del catá
    Texto del usuario: "achicá un poco las cards en general, quizá ahi sea mejor".
 S11. La barra de navegación queda pegada arriba y sigue el scroll.
    Texto del usuario: "Además hace el navbar sticky, que siga el scroll".
+S12. El botón de la card del catálogo dice "Más información y reserva" en lugar de "Reservar mi lugar".
+   Texto del usuario: "Me cambias que la card principal en vez de 'Reservar mi lugar diga 'Mas información y reserva'?"
+   Nota: el texto se escribió con tilde ("Más"), no como lo escribió el usuario ("Mas"), porque el resto de la interfaz usa tildes correctas y sin ella sería una falta de ortografía visible en el sitio. El estado lleno de la card sigue diciendo "Evento completo".
 S4. Cuando no hay imagen se muestra un color de relleno en el mismo espacio 3:4.
    Texto del usuario: "y ponele un color placeholder donde iria la imagen".
 S5. Una sola imagen por evento.
@@ -113,6 +116,7 @@ Convención del bucket `event-images` (nuevo, público):
 - T10 — Foto a ancho completo otra vez (S3 revisado 2). Inline.
 - T11 — Cards más angostas y navbar sticky (S10, S11). Inline.
 - T12 — Verificación de las credenciales del admin (L12). Inline.
+- T13 — Texto del botón de la card (S12). Inline.
 
 ## Estrategia de entrega
 
@@ -222,3 +226,19 @@ La contraseña se verifica pero no se escribe en este documento ni en `PROGRESO.
 El script suelto que usé para esto se borró del temporal; la contraseña no quedó escrita en el repo ni en ningún archivo de la app.
 
 Evidencia de los cambios de UI: `npx tsc --noEmit` exit 0. `npm run lint` 4 problems, idéntico al baseline. Render contra el server de desarrollo: el header sale con `sticky top-0 z-50` y ya no con `relative`; el catálogo con `max-w-2xl` y ya no con `max-w-3xl`; las 4 cards siguen con la foto 3:4 a ancho completo; las 4 fechas en negrita; y la página de detalle sigue en `max-w-3xl`.
+
+### L13 — Quinto pedido del usuario (verbatim)
+
+> Me cambias que la card principal en vez de "Reservar mi lugar diga "Mas información y reserva"?
+
+Un solo cambio de texto, en `src/components/event-card.tsx`: el `<span>` que hace de botón en la card pasa de `"Reservar mi lugar"` a `"Más información y reserva"`.
+
+- Se escribió con tilde. El usuario tipeó "Mas" sin tilde; el resto de la interfaz usa tildes correctas ("Próximos eventos", "Sin lugares disponibles", "Círculo de escritura creativa"), así que dejarlo sin tilde habría sido una falta de ortografía a la vista en el sitio. Queda anotado acá para que se pueda revertir si el usuario lo quería literal.
+- El estado lleno sigue diciendo "Evento completo": ahí no cambia nada.
+- La página de detalle del evento (`src/app/eventos/[id]/page.tsx`) sigue diciendo "Reservar mi lugar". El usuario pidió "la card principal", no el detalle, así que no se tocó.
+
+Evidencia: `npx tsc --noEmit` exit 0. `npm run lint` 4 problems, idéntico al baseline. Render contra el server de desarrollo: el catálogo no tiene ninguna ocurrencia de "Reservar mi lugar" y sí 3 del texto nuevo, una por card publicada. Los code points del texto servido son 77, 225, 115 y 243 (`M`, `á`, `s`, `ó`), o sea que las tildes llegan bien al navegador y no son un artefacto de la consola.
+
+Dato de contexto, no un defecto: el conteo de cards bajo de 4 a 3 respecto de L12 porque el usuario despublicó "Smoke test event" desde el panel durante la sesión (`is_published` pasó de `t` a `f`). El dato lo cambió el usuario, no el código.
+
+Pendiente de decisión del usuario, relevado mientras se respondía una consulta anterior sobre un error de Next: los dos routes de `eventos` del panel (`eventos/page.tsx` y `eventos/[id]/page.tsx`) son los únicos que leen la base sin `export const instant = false;`; el resto del panel ya lo tiene. No se tocaron porque el usuario preguntó si el error era grave, no pidió el cambio.

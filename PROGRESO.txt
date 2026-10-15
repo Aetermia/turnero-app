@@ -1669,3 +1669,34 @@ PENDIENTES QUE QUEDAN
   del evento sin cambios.
 
 ===============================================================================
+
+===============================================================================
+26. TEXTO DEL BOTON DE LA CARD (15/10/2026)
+===============================================================================
+
+  El boton de la card del catalogo ahora dice "Mas información y reserva" en
+  lugar de "Reservar mi lugar". Un solo archivo, src/components/event-card.tsx.
+
+  DOS ACLARACIONES
+
+  1. Se escribio con tilde. El pedido vino tipeado "Mas", sin tilde, pero el
+     resto del sitio usa tildes correctas ("Proximos eventos", "Sin lugares
+     disponibles"), asi que dejarlo sin tilde habria sido una falta de
+     ortografia a la vista en el catalogo. Si se queria literal, se revierte.
+
+  2. La pagina de detalle del evento NO se toco: ahi sigue diciendo "Reservar
+     mi lugar". El pedido hablaba de la card, no del detalle.
+
+  El estado de evento lleno sigue diciendo "Evento completo", sin cambios.
+
+  COMO SE VERIFICO
+
+  npx tsc --noEmit exit 0. npm run lint identico al baseline. Render contra el
+  server de desarrollo: el catalogo no tiene ninguna ocurrencia del texto
+  viejo y si una del nuevo por cada card publicada. Las tildes llegan bien al
+  navegador (verificado por code points, no por lo que muestra la consola).
+
+  NOTA: el catalogo muestra 3 cards en vez de 4 porque se despublico "Smoke
+  test event" desde el panel durante la sesion. Lo cambio el usuario.
+
+===============================================================================
