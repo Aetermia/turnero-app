@@ -44,10 +44,10 @@ S1. En el catálogo público los eventos van uno debajo del otro (una sola colum
    Texto del usuario: "los eventos tienen que ir uno debajo del otro".
 S2. Las cards ocupan más espacio visual que hoy.
    Texto del usuario: "y tienen que ocupar mas espacio visual".
-S3. Entre el nombre y la descripción/fecha va la imagen del evento, con ratio 3:4.
+S3. Entre el nombre y la descripción/fecha va la imagen del evento, con ratio 3:4, ocupando el ancho de la card.
    Texto del usuario: "entre el nombre y la descripción/fecha, etc... Va a haber una imagen, que sea 3:4 el ratio".
-   Revisado el 14/10/2026: la imagen NO ocupa el ancho total de la card. Se mantiene el 3:4 y se reduce a dos tercios del ancho, centrada. El ancho completo daba 736x981 px: un solo evento ocupaba la pantalla entera.
-   Texto del usuario: "Me gustaria que fuese un poco mas chica la imagen, actualmente es muy grande".
+   Revisado el 14/10/2026 (2): la imagen vuelve a ocupar el ancho completo de la card y a sangrar de borde a borde. La reducción a dos tercios que se probó entre medio dejaba la foto flotando y no era lo pedido.
+   Texto del usuario: "a ver, hace que las imagenes entren de ancho en la card".
 S9. La fecha y el horario del evento se muestran en negrita en el catálogo.
    Texto del usuario: "Además me gustaria que la fecha y horario esten en negrita".
 S4. Cuando no hay imagen se muestra un color de relleno en el mismo espacio 3:4.
@@ -180,3 +180,13 @@ Qué se hizo:
 - NO se tocó la página de detalle: ahí la foto sigue a ancho completo y la fecha sin negrita. El pedido apuntaba al catálogo. Si también se quiere ahí, es una línea en cada caso.
 
 Evidencia: `npx tsc --noEmit` exit 0. `npm run lint` 4 problems (1 error + 3 warnings), idéntico al baseline. Render contra el server de desarrollo: 4 cards con `aspect-[3/4] w-2/3` y 0 con `w-full`, 4 bloques de fecha con `font-semibold text-ink`, 4 atributos `sizes` nuevos, y la URL del optimizador responde 200.
+
+### L10 — Tercer pedido del usuario (verbatim)
+
+> a ver, hace que las imagenes entren de ancho en la card
+
+Qué se hizo: se revierte la reducción a dos tercios. La imagen vuelve a `w-full`, de borde a borde de la card, manteniendo el 3:4, el `mx-auto` se va y el atributo `sizes` vuelve a `(min-width: 800px) 736px, 100vw`. La fecha en negrita del pedido anterior queda como estaba.
+
+Queda anotado, porque importa para el próximo cambio: a ancho completo y 3:4 la foto mide 736x981 px en pantalla grande, que es el estado que el usuario había llamado "muy grande" en el pedido anterior. Si lo que molesta es la altura y no el ancho, la palanca es el ratio (por ejemplo `aspect-[4/3]`), no el ancho: reducir el ancho ya se probó y el usuario lo rechazó.
+
+Evidencia: `npx tsc --noEmit` exit 0. `npm run lint` 4 problems, idéntico al baseline. Render contra el server de desarrollo: 4 cards con `aspect-[3/4] w-full` y 0 con `w-2/3`, 4 `sizes` con `736px, 100vw`, 4 fechas en negrita, y la URL del optimizador responde 200.

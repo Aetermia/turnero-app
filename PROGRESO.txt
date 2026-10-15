@@ -1597,3 +1597,28 @@ PENDIENTES QUE QUEDAN
   fechas salen en negrita, y la imagen optimizada responde 200.
 
 ===============================================================================
+
+===============================================================================
+24. LA FOTO DEL CATALOGO VUELVE A ANCHO COMPLETO (14/10/2026)
+===============================================================================
+
+  La reduccion a dos tercios del punto 23.1 no era lo pedido: dejaba la foto
+  flotando con espacio a los costados. La foto vuelve a ocupar todo el ancho
+  de la card, de borde a borde, y mantiene la proporcion 3:4. El atributo
+  "sizes" vuelve al valor que corresponde a ese ancho. La fecha en negrita se
+  mantiene: ese pedido no se toco.
+
+  QUEDA ANOTADO, porque importa para el proximo ajuste: a ancho completo y 3:4
+  la foto mide 736x981 px en pantalla grande, que es el tamaño que el usuario
+  habia llamado "muy grande". Si lo que molesta es la ALTURA, la palanca es el
+  ratio (por ejemplo 4:3), no el ancho: achicar el ancho ya se probo y se
+  rechazo.
+
+  COMO SE VERIFICO
+
+  npx tsc --noEmit exit 0. npm run lint identico al baseline. Render contra el
+  server de desarrollo: las 4 cards salen con el bloque 3:4 a ancho completo y
+  ninguna a dos tercios, las 4 fechas siguen en negrita, y la imagen optimizada
+  responde 200.
+
+===============================================================================
