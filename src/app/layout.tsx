@@ -32,7 +32,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${montserrat.variable} ${cormorant.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col bg-paper text-ink">
-        <header className="relative border-b border-brand-100 bg-paper">
+        {/*
+          The header sticks to the top so the logo and the way back home stay
+          reachable while scrolling a long catalog. It carries its own opaque
+          background, which is what keeps the events from showing through it,
+          and a z-index high enough to sit above the cards.
+        */}
+        <header className="sticky top-0 z-50 border-b border-brand-100 bg-paper">
           <FloralGarland />
           <div className="relative flex w-full items-center px-4 py-4 sm:px-6">
             <Link
