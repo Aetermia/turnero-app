@@ -45,3 +45,6 @@ next-env.d.ts
 
 # gentle-ai generated skill registry (machine-specific absolute paths, regenerated on demand)
 .atl/
+
+# downloaded client exports (transient, never part of the site)
+public/clientes-*.csv
