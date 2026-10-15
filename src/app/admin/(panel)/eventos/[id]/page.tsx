@@ -4,6 +4,7 @@ import { getEventForAdminById } from "@/lib/events";
 import { updateEventAction } from "../actions";
 import { toDateTimeLocalValue } from "../datetime";
 import { EventForm } from "../event-form";
+import { EventImageField } from "../event-image-field";
 
 export default async function EditEventPage({
   params,
@@ -48,6 +49,12 @@ export default async function EditEventPage({
           price: event.price,
           isPublished: event.isPublished,
         }}
+      />
+
+      <EventImageField
+        eventId={event.id}
+        theme={event.theme}
+        imageUrl={event.imageUrl}
       />
     </section>
   );
