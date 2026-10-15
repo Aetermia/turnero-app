@@ -96,7 +96,7 @@ export function EventCard({ event }: { event: EventWithSeats }) {
               : "mt-auto inline-flex min-h-12 items-center justify-center rounded-md bg-brand-700 px-5 text-center font-semibold text-white transition-colors group-hover:bg-brand-800"
           }
         >
-          {isFull ? "Evento completo" : "Reservar mi lugar"}
+          {isFull ? "Evento completo" : "Más información y reserva"}
         </span>
       </div>
     </Link>
