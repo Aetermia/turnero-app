@@ -14,10 +14,11 @@ import { themeTone } from "@/lib/theme-tone";
  * single link, which keeps the tap target large on phones.
  *
  * The card is laid out in one column, so each event gets the full width of the
- * page and the photo can be big. The photo sits between the title and the
- * details, as asked. When an event has no photo yet the same 3:4 box stays in
- * place, filled with the tone of its theme, so the rhythm of the list does not
- * change and nothing looks broken.
+ * page. The photo sits between the title and the details, as asked, and keeps
+ * its 3:4 ratio at two thirds of the card width: full width made it so tall
+ * that one event filled the screen. When an event has no photo yet the same
+ * 3:4 box stays in place, filled with the tone of its theme, so the rhythm of
+ * the list does not change and nothing looks broken.
  *
  * The description is not rendered here: the catalog shows date, place and
  * price, and the description lives on the detail page.
@@ -42,13 +43,15 @@ export function EventCard({ event }: { event: EventWithSeats }) {
         </h2>
       </header>
 
-      <div className={`relative mt-5 aspect-[3/4] w-full ${tone.placeholder}`}>
+      <div
+        className={`relative mx-auto mt-5 aspect-[3/4] w-2/3 ${tone.placeholder}`}
+      >
         {event.imageUrl ? (
           <Image
             src={event.imageUrl}
             alt=""
             fill
-            sizes="(min-width: 800px) 736px, 100vw"
+            sizes="(min-width: 800px) 491px, 66vw"
             className="object-cover"
           />
         ) : null}
@@ -58,7 +61,7 @@ export function EventCard({ event }: { event: EventWithSeats }) {
         <dl className="flex flex-col gap-1 text-base text-ink-soft">
           <div>
             <dt className="sr-only">Fecha y hora</dt>
-            <dd>
+            <dd className="font-semibold text-ink">
               {capitalizeFirst(formatEventDate(event.startsAt))} ·{" "}
               {formatEventTimeRange(event.startsAt, event.endsAt)}
             </dd>

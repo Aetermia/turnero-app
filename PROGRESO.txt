@@ -1571,3 +1571,29 @@ PENDIENTES QUE QUEDAN
     "event-images") y Vercel.
 
 ===============================================================================
+
+===============================================================================
+23. LA FOTO DEL CATALOGO MAS CHICA Y LA FECHA EN NEGRITA (14/10/2026)
+===============================================================================
+
+  1. LA FOTO OCUPABA TODA LA PANTALLA. A ancho completo y con proporcion 3:4,
+     en una pantalla grande medía 736x981 px: un solo evento llenaba la
+     pantalla y habia que scrollear para ver el siguiente. Ahora ocupa dos
+     tercios del ancho de la card y va centrada. En pantalla grande queda en
+     491x654 y en un celular de 390 px en 239x318. La proporcion 3:4 no se
+     toca, y el bloque de color cuando no hay foto mide lo mismo que la foto.
+
+  2. LA FECHA Y EL HORARIO VAN EN NEGRITA en el catalogo, y en el color fuerte
+     en vez del gris suave: negrita sobre gris claro se leia embarrado.
+
+  NO SE TOCO la pagina de detalle: ahi la foto sigue a ancho completo y la
+  fecha sin negrita, porque el pedido era sobre el catalogo.
+
+  COMO SE VERIFICO
+
+  npx tsc --noEmit exit 0. npm run lint identico al baseline (1 error + 3
+  warnings, cero nuevos). Render contra el server de desarrollo: las 4 cards
+  salen con el bloque 3:4 a dos tercios y ninguna a ancho completo, las 4
+  fechas salen en negrita, y la imagen optimizada responde 200.
+
+===============================================================================

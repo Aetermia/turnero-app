@@ -46,6 +46,10 @@ S2. Las cards ocupan más espacio visual que hoy.
    Texto del usuario: "y tienen que ocupar mas espacio visual".
 S3. Entre el nombre y la descripción/fecha va la imagen del evento, con ratio 3:4.
    Texto del usuario: "entre el nombre y la descripción/fecha, etc... Va a haber una imagen, que sea 3:4 el ratio".
+   Revisado el 14/10/2026: la imagen NO ocupa el ancho total de la card. Se mantiene el 3:4 y se reduce a dos tercios del ancho, centrada. El ancho completo daba 736x981 px: un solo evento ocupaba la pantalla entera.
+   Texto del usuario: "Me gustaria que fuese un poco mas chica la imagen, actualmente es muy grande".
+S9. La fecha y el horario del evento se muestran en negrita en el catálogo.
+   Texto del usuario: "Además me gustaria que la fecha y horario esten en negrita".
 S4. Cuando no hay imagen se muestra un color de relleno en el mismo espacio 3:4.
    Texto del usuario: "y ponele un color placeholder donde iria la imagen".
 S5. Una sola imagen por evento.
@@ -101,6 +105,7 @@ Convención del bucket `event-images` (nuevo, público):
 - T6 — Verificación contra la base real y actualización del doc (S1..S7). Inline.
 - T7 — Fotos de ejemplo de `public/` en los eventos que les corresponden (S8). Inline.
 - T8 — Commits por unidad de trabajo en `feat/event-images`. Inline.
+- T9 — Imagen más chica (dos tercios, centrada) y fecha/horario en negrita (S3 revisado, S9). Inline.
 
 ## Estrategia de entrega
 
@@ -161,3 +166,17 @@ El escenario 1 del script (`"a folder with no object is rejected"`) falló al co
 ### L8 — Verificación de integridad de rutas locales (nuevo escenario 7)
 
 Se agregó al script un escenario que, para cada evento con `image_url` que empieza con `/`, comprueba que el archivo exista en `public/` Y que el nombre coincida exactamente con el del disco (comparación sensible a mayúsculas, no `existsSync` solo). Motivo: la base tenía `/escritura.webp` con la `e` en minúscula y el archivo es `Escritura.webp`. En Windows resolvía; en Vercel (Linux) habría dado 404. Corregido en la base y ahora cubierto por el script.
+
+### L9 — Segundo pedido del usuario (verbatim)
+
+> Me gustaria que fuese un poco mas chica la imagen, actualmente es muy grande.
+> Además me gustaria que la fecha y horario esten en negrita
+
+Qué se hizo:
+
+- La imagen pasa de ancho completo a `w-2/3` centrada (`mx-auto`), conservando el 3:4 y el bloque de color del mismo tamaño. Números: antes 736x981 en pantalla grande, ahora 491x654; en un celular de 390 px, antes 358x477 y ahora 239x318. No se toca la card ni el ancho de la columna: lo que el usuario había pedido antes (más espacio visual) sigue igual.
+- Se actualizó el atributo `sizes` de `next/image` a `(min-width: 800px) 491px, 66vw`, para que el optimizador elija el archivo del tamaño real y no un sobrante de 3840 px.
+- La fecha y el horario del catálogo pasan a `font-semibold text-ink`: negrita y el color fuerte en vez del gris suave. El gris suave con negrita se leía embarrado.
+- NO se tocó la página de detalle: ahí la foto sigue a ancho completo y la fecha sin negrita. El pedido apuntaba al catálogo. Si también se quiere ahí, es una línea en cada caso.
+
+Evidencia: `npx tsc --noEmit` exit 0. `npm run lint` 4 problems (1 error + 3 warnings), idéntico al baseline. Render contra el server de desarrollo: 4 cards con `aspect-[3/4] w-2/3` y 0 con `w-full`, 4 bloques de fecha con `font-semibold text-ink`, 4 atributos `sizes` nuevos, y la URL del optimizador responde 200.
