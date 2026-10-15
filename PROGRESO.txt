@@ -1622,3 +1622,50 @@ PENDIENTES QUE QUEDAN
   responde 200.
 
 ===============================================================================
+
+===============================================================================
+25. CARDS MAS ANGOSTAS Y NAVBAR PEGADO ARRIBA (15/10/2026)
+===============================================================================
+
+  1. LAS CARDS SON MAS ANGOSTAS. En vez de seguir achicando la foto -que ya se
+     habia probado y rechazado-, se achico la columna entera del catalogo: de
+     768 px a 672 px de ancho. Asi el titulo, el texto de arriba y las cards
+     siguen alineados entre si, y la foto se achica sola sin tocar la
+     proporcion 3:4. El ancho de contenido de la card baja de 736 a 640 px y la
+     foto de 736x981 a 640x853 px.
+
+     Solo cambia la pagina de inicio. El detalle del evento, la reserva y el
+     panel siguen con el ancho de siempre, que es como esta hecho el resto del
+     sitio.
+
+  2. LA BARRA DE ARRIBA SIGUE EL SCROLL. El header ahora queda pegado al borde
+     superior cuando bajas. Dos detalles que ya estaban resueltos y por eso
+     funciono sin tocar nada mas: el header ya tenia su propio fondo, que es lo
+     que impide que los eventos se vean por detras, y no habia ningun otro
+     elemento con z-index en toda la app, asi que no habia con que chocar. Las
+     flores decorativas siguen dibujandose dentro del header y viajan con el.
+
+  CREDENCIALES DEL ADMIN
+
+  El usuario y la contrasena de desarrollo NO se escriben en este archivo: es
+  un archivo versionado y el repo guarda a proposito solo el hash, nunca la
+  contrasena. Los datos estan en .env (ADMIN_USER y ADMIN_PASSWORD_HASH) y se
+  los puede pedir al asistente en el chat.
+
+  Lo que SI quedo verificado, y es lo que importa: se hizo un POST real al
+  formulario de login del server de desarrollo con el par usuario/contrasena
+  vigente. Responde 303 (redirige a /admin) y entrega la cookie de sesion. Con
+  una contrasena incorrecta responde 303 a /admin/login?error=credentials y no
+  entrega cookie.
+
+  Si hay que cambiarla: node scripts/hash-admin-password.mjs "la-nueva" y pegar
+  el valor impreso en ADMIN_PASSWORD_HASH.
+
+  COMO SE VERIFICO
+
+  npx tsc --noEmit exit 0. npm run lint identico al baseline. Render contra el
+  server de desarrollo: el header sale pegado arriba, el catalogo con el ancho
+  nuevo, las 4 fotos a ancho completo, las 4 fechas en negrita, y el detalle
+  del evento sin cambios.
+
+===============================================================================

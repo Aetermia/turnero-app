@@ -50,6 +50,10 @@ S3. Entre el nombre y la descripción/fecha va la imagen del evento, con ratio 3
    Texto del usuario: "a ver, hace que las imagenes entren de ancho en la card".
 S9. La fecha y el horario del evento se muestran en negrita en el catálogo.
    Texto del usuario: "Además me gustaria que la fecha y horario esten en negrita".
+S10. Las cards del catálogo son más angostas que antes, y la columna del catálogo se achica con ellas.
+   Texto del usuario: "achicá un poco las cards en general, quizá ahi sea mejor".
+S11. La barra de navegación queda pegada arriba y sigue el scroll.
+   Texto del usuario: "Además hace el navbar sticky, que siga el scroll".
 S4. Cuando no hay imagen se muestra un color de relleno en el mismo espacio 3:4.
    Texto del usuario: "y ponele un color placeholder donde iria la imagen".
 S5. Una sola imagen por evento.
@@ -106,6 +110,9 @@ Convención del bucket `event-images` (nuevo, público):
 - T7 — Fotos de ejemplo de `public/` en los eventos que les corresponden (S8). Inline.
 - T8 — Commits por unidad de trabajo en `feat/event-images`. Inline.
 - T9 — Imagen más chica (dos tercios, centrada) y fecha/horario en negrita (S3 revisado, S9). Inline.
+- T10 — Foto a ancho completo otra vez (S3 revisado 2). Inline.
+- T11 — Cards más angostas y navbar sticky (S10, S11). Inline.
+- T12 — Verificación de las credenciales del admin (L12). Inline.
 
 ## Estrategia de entrega
 
@@ -190,3 +197,28 @@ Qué se hizo: se revierte la reducción a dos tercios. La imagen vuelve a `w-ful
 Queda anotado, porque importa para el próximo cambio: a ancho completo y 3:4 la foto mide 736x981 px en pantalla grande, que es el estado que el usuario había llamado "muy grande" en el pedido anterior. Si lo que molesta es la altura y no el ancho, la palanca es el ratio (por ejemplo `aspect-[4/3]`), no el ancho: reducir el ancho ya se probó y el usuario lo rechazó.
 
 Evidencia: `npx tsc --noEmit` exit 0. `npm run lint` 4 problems, idéntico al baseline. Render contra el server de desarrollo: 4 cards con `aspect-[3/4] w-full` y 0 con `w-2/3`, 4 `sizes` con `736px, 100vw`, 4 fechas en negrita, y la URL del optimizador responde 200.
+
+### L11 — Cuarto pedido del usuario (verbatim)
+
+> A ver, achicá un poco las cards en general, quizá ahi sea mejor. Además hace el navbar sticky, que siga el scroll. Me recordas la contra y user del admin?
+
+Qué se hizo:
+
+- **Cards más angostas (S10).** La columna del catálogo pasa de `max-w-3xl` (768 px) a `max-w-2xl` (672 px). Se achica la columna entera y no sólo la lista, para que el título, el texto de arriba y las cards sigan alineados entre sí. Efecto: el ancho de contenido de la card baja de 736 a 640 px y la foto 3:4 a ancho completo pasa de 736x981 a 640x853. Es la solución que el usuario propuso para la foto grande, y tiene la virtud de no tocar el ratio 3:4 que había pedido al principio. Sólo cambia la home: el detalle, la reserva y el panel siguen en `max-w-3xl`, que es la convención del proyecto.
+- **Navbar sticky (S11).** El header pasa de `relative` a `sticky top-0 z-50`. Ya tenía `bg-paper`, que es lo que evita que los eventos se vean por detrás al scrollear, y el z-index alto lo pone por encima de las cards. La decoración floral (`FloralGarland`) va `absolute inset-0` dentro del header, así que viaja con él sin cambios. El grep confirmó que en todo `src` no había ningún z-index, así que no hay nada con lo que colisionar.
+
+Credenciales del admin: verificado con una prueba real, no de memoria. La tabla está en L12.
+
+### L12 — Verificación de las credenciales del admin
+
+El usuario pidió que le recuerde usuario y contraseña. Se verificó contra el sistema real en vez de repetir de memoria:
+
+1. Primero intenté importar `authenticateAdmin` de `src/lib/auth.ts` en un script suelto. No se puede: `auth.ts` importa `next/headers`, que fuera del runtime de Next no resuelve (`ERR_MODULE_NOT_FOUND`). Tampoco con `--conditions=react-server`.
+2. Entonces comparé la contraseña contra `ADMIN_PASSWORD_HASH` con `deriveKey` de `scripts/hash-admin-password.mjs` (el módulo del que `auth.ts` importa los parámetros de scrypt) y `timingSafeEqual`. Detalle que importa: el generador escapa cada `$` como `\$` porque Next expande `$name` dentro de `.env`; Node no desescapa, así que hay que hacerlo antes de comparar o la comparación falla siempre por un motivo que no tiene nada que ver con la contraseña.
+3. Cierre de punta a punta, que es la prueba que vale: POST real al formulario de login del server de desarrollo (multipart con el `$ACTION_ID` que el form renderiza para funcionar sin JavaScript, con `curl.exe`). Con el par usuario/contraseña vigente responde **303 See Other** a `/admin` y setea la cookie `admin_session`. Control con una contraseña incorrecta: **303** a `/admin/login?error=credentials`, sin cookie. La diferencia entre los dos casos es lo que hace que la prueba signifique algo.
+
+La contraseña se verifica pero no se escribe en este documento ni en `PROGRESO.txt`: los dos son archivos versionados y el repo guarda a propósito sólo el hash (`ADMIN_PASSWORD_HASH`), nunca el texto plano. Escribirla en el repo anularía esa decisión. El valor va en el chat, y para cambiarlo se corre `node scripts/hash-admin-password.mjs "la-nueva"`.
+
+El script suelto que usé para esto se borró del temporal; la contraseña no quedó escrita en el repo ni en ningún archivo de la app.
+
+Evidencia de los cambios de UI: `npx tsc --noEmit` exit 0. `npm run lint` 4 problems, idéntico al baseline. Render contra el server de desarrollo: el header sale con `sticky top-0 z-50` y ya no con `relative`; el catálogo con `max-w-2xl` y ya no con `max-w-3xl`; las 4 cards siguen con la foto 3:4 a ancho completo; las 4 fechas en negrita; y la página de detalle sigue en `max-w-3xl`.
