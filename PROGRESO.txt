@@ -1460,3 +1460,114 @@ PENDIENTES QUE QUEDAN
   - Despliegue: proyecto de Supabase (base + bucket "receipts") y Vercel.
 
 ===============================================================================
+
+===============================================================================
+22. FOTO DEL EVENTO, CATALOGO APILADO Y CRUD DESDE EL PANEL (14/10/2026)
+===============================================================================
+
+QUE SE CONSTRUYO
+
+  1. EL CATALOGO ES UNA SOLA COLUMNA. Antes era una grilla de dos columnas
+     con cards chicas. Ahora los eventos van uno debajo del otro y cada card
+     ocupa el ancho de la pagina.
+
+  2. LA FOTO DEL EVENTO VA ENTRE EL NOMBRE Y LOS DATOS, en proporcion 3:4.
+     Cuando el evento no tiene foto, el mismo espacio 3:4 queda ocupado por un
+     bloque de color: el tono 300 de la tematica del evento (Pintura,
+     Escritura, Charla, Ceramica...). Asi el ritmo de la lista no cambia y
+     nada se ve roto.
+
+  3. LA MISMA FOTO SE VE EN EL DETALLE del evento. Sin bloque de color: en una
+     pagina completa un rectangulo grande de color se leeria como un error.
+
+  4. LA DUENA PUEDE SUBIR, VER, REEMPLAZAR Y BORRAR LA FOTO del evento desde
+     la edicion, en el panel. El selector abre camara o galeria en el celular,
+     la imagen se comprime en el propio celular antes de subir y el archivo va
+     directo al almacenamiento: el peso no pasa por el servidor de la app.
+
+  5. FOTOS DE EJEMPLO. Se cargaron las dos imagenes de ejemplo que dejo el
+     usuario en public/:
+       Acuarelas.webp  -> Taller de acuarela para principiantes
+       Escritura.webp  -> Circulo de escritura creativa
+     logo.webp es el logo de la app, no una foto de evento: no se usa.
+
+DECISIONES QUE CONVIENEN ENTENDER
+
+  1. UNA SOLA FOTO POR EVENTO. Se reutiliza la columna events.image_url, que
+     ya existia y no se renderizaba en ningun lado. No hay tabla nueva ni
+     migracion.
+
+  2. EL BUCKET DE FOTOS DE EVENTO ES PUBLICO ("event-images"); el de
+     comprobantes SIGUE PRIVADO. Son cosas distintas: la foto del evento es
+     contenido que se publica en el catalogo, el comprobante es un dato
+     sensible que se sirve con una URL firmada que vence.
+
+  3. SE GUARDA LA URL PUBLICA COMPLETA, no el path dentro del bucket. Si se
+     guardara el path, el catalogo no podria armar la URL en desarrollo (donde
+     no hay proyecto de Supabase) y la home se romperia. Contrapartida: si el
+     proyecto de Supabase cambiara de host, las URLs viejas apuntarian al host
+     viejo.
+
+  4. LA FOTO NO SE PUEDE CARGAR EN EL ALTA (/admin/eventos/nuevo): el nombre
+     del archivo depende del id del evento, y en el alta el id todavia no
+     existe. Se carga editando el evento. Es una limitacion aceptada.
+
+  5. WEBP, JPEG Y PNG, hasta 8 MB, y la imagen se reduce a 1600 px de lado
+     mayor antes de subir. Un HEIC (lo que saca el iPhone por defecto) se
+     re-encoda solo si el navegador puede; si no puede, se sube tal cual y
+     puede no verse en algunos navegadores. Queda anotado.
+
+  6. LAS FOTOS DE EJEMPLO SE GUARDARON COMO RUTA LOCAL (/Acuarelas.webp), no
+     como URL de Supabase. Es a proposito: los archivos viven en public/ y los
+     sirve la propia app, asi el catalogo se ve completo en desarrollo sin
+     Supabase. Consecuencia: el panel no puede guardar una ruta local (su
+     validador solo acepta URLs del bucket), solo subir una foto de verdad.
+
+EL DEFECTO REAL QUE LA VERIFICACION ENCONTRO Y SE CORRIGIO
+
+  1. UNA URL DE CARPETA PASABA COMO FOTO VALIDA. La validacion del servidor
+     rechazaba una URL vacia y una con "..", pero aceptaba una que terminaba
+     en "/" (es decir, la carpeta del evento, no un archivo). Si eso pasaba,
+     la card intentaba dibujar una carpeta y mostraba imagen rota en lugar del
+     bloque de color. Corregido en src/lib/storage.ts.
+
+  2. UNA RUTA CON LA MAYUSCULA CAMBIADA. En la base estaba guardado
+     /escritura.webp y el archivo se llama Escritura.webp. En Windows se ve
+     bien; en Vercel, que es Linux, la imagen no apareceria NUNCA. Se corrigio
+     el dato y ahora el script de verificacion compara el nombre contra el
+     archivo real del disco, letra por letra, para que no vuelva a pasar.
+
+COMO SE VERIFICO
+
+  npx tsc --noEmit exit 0. npm run lint identico al baseline (1 error
+  preexistente en la pagina de reserva + 3 warnings; cero nuevos).
+  node scripts/verify-events-admin.mjs PASS. node scripts/verify-event-image.mjs
+  PASS (8 escenarios).
+  Render real contra el server de desarrollo: el catalogo trae las dos fotos,
+  el detalle de los dos eventos tambien, y tanto /Acuarelas.webp como
+  /Escritura.webp y sus URLs del optimizador responden 200.
+
+LO QUE SIGUE SIN PROBARSE (IMPORTANTE)
+
+  La subida real de la foto del evento nunca se ejecuto de punta a punta: en
+  desarrollo no hay proyecto de Supabase. Al crear el proyecto hay que crear el
+  bucket PUBLICO "event-images" y probar desde un celular: subir, reemplazar y
+  borrar. El bucket privado "receipts" sigue siendo lo otro que hay que probar.
+
+PENDIENTES QUE QUEDAN
+
+  P3 - Aviso automatico de rechazo (hoy: boton de WhatsApp de un toque).
+  P8 - Alias real de pago de MercadoLibre (variable PAYMENT_ALIAS).
+  - Cargar la foto tambien en la base de PRODUCCION: las dos fotos de ejemplo
+    se cargaron solo en la base local. En el despliegue hay que subirlas de
+    nuevo desde el panel (o copiar el valor de image_url).
+  - Quedan sin foto "Charla: cocina sin TACC en casa" y "Taller de ceramica"
+    (borrador). Muestran el bloque de color, que es el comportamiento previsto.
+  - Extraer la compresion de imagen a un modulo compartido: hoy el flujo de
+    comprobantes y el de la foto del evento la tienen duplicada, porque el de
+    comprobantes no se puede probar localmente y refactorizarlo seria a
+    ciegas.
+  - Despliegue: proyecto de Supabase (base + buckets "receipts" y
+    "event-images") y Vercel.
+
+===============================================================================
