@@ -6,7 +6,6 @@ const VENUE = {
   address: "Monseñor de Andrea 202, Tandil",
   mapsUrl:
     "https://www.google.com/maps/search/?api=1&query=Monse%C3%B1or+de+Andrea+202%2C+Tandil%2C+Argentina",
-  hours: "Miércoles cerrado",
   whatsappLabel: "2494 31-4915",
   whatsappUrl: "https://wa.me/5492494314915",
   instagramHandle: "@casadeantontandil",
@@ -25,7 +24,6 @@ export function SiteFooter() {
             Casa de Antón
           </p>
           <p>Casa de té · Talleres y encuentros</p>
-          <p>{VENUE.hours}</p>
         </div>
         <ul className="flex flex-col gap-1.5">
           <li>
