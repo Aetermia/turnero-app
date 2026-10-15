@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { connection } from "next/server";
 import { logoutAdmin } from "@/app/admin/actions/logout";
 import { getAdminSession } from "@/lib/auth";
+import { PanelBackLink } from "./panel-back-link";
 
 /*
  * Defense-in-depth check for the whole panel. `/admin/login` lives outside this
@@ -43,14 +44,18 @@ export default async function AdminPanelLayout({
           </span>
         </div>
 
-        <form action={logoutAdmin}>
-          <button
-            type="submit"
-            className="inline-flex min-h-10 items-center justify-center rounded-md border border-brand-200 px-3 text-sm font-medium text-brand-700 transition-colors hover:bg-brand-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
-          >
-            Cerrar sesión
-          </button>
-        </form>
+        <div className="flex items-center gap-3">
+          <PanelBackLink />
+
+          <form action={logoutAdmin}>
+            <button
+              type="submit"
+              className="inline-flex min-h-10 items-center justify-center rounded-md border border-brand-200 px-3 text-sm font-medium text-brand-700 transition-colors hover:bg-brand-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
+            >
+              Cerrar sesión
+            </button>
+          </form>
+        </div>
       </div>
 
       {children}
