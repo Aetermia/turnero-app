@@ -2,6 +2,7 @@ import Link from "next/link";
 import { listClientsForAdmin } from "@/lib/clients";
 import { formatDateTime } from "@/lib/format";
 import { parseAdminClientFilters } from "@/lib/reservation-admin-schema";
+import { CopyEmailsButton } from "./copy-emails-button";
 
 /*
  * Client list for the panel: contact data plus what each person reserved,
@@ -88,6 +89,7 @@ export default async function AdminClientsPage({
               Limpiar
             </Link>
           ) : null}
+          <CopyEmailsButton emails={clients.map((client) => client.email)} />
           <Link
             href={exportHref}
             className="inline-flex min-h-10 items-center justify-center rounded-md border border-brand-200 px-3 text-sm font-medium text-brand-700 transition-colors hover:bg-brand-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
