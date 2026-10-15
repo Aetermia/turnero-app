@@ -20,9 +20,9 @@ async function UpcomingEvents() {
   }
 
   return (
-    <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+    <ul className="flex flex-col gap-8">
       {upcoming.map((event) => (
-        <li key={event.id} className="h-full">
+        <li key={event.id}>
           <EventCard event={event} />
         </li>
       ))}
