@@ -3,11 +3,132 @@
   REGISTRO DE DESARROLLO
 ===============================================================================
 
-Ultima actualizacion : 14/10/2026
-Estado general       : Etapa 1 (Discovery) CERRADA - Etapa 2 (Construccion) CERRADA
-                       T1 a T12 cerradas. Proximo paso: despliegue (Supabase +
-                       Vercel) y prueba de punta a punta de la subida del
-                       comprobante (ver seccion 21).
+Ultima actualizacion : 18/10/2026
+Estado general       : Construccion CERRADA (T1 a T12 + fotos de evento + ajustes
+                       de diseno). Falta: decidir terminos y condiciones,
+                       configurar Supabase y el hosting, probar de punta a punta
+                       y publicar. Ver seccion 0 (estado actual).
+
+-------------------------------------------------------------------------------
+0. ESTADO ACTUAL - RESUMEN (leer primero)
+-------------------------------------------------------------------------------
+
+QUE ES
+  - Sistema web de reservas para Casa de Anton (casa de te en Tandil), que
+    organiza eventos tematicos: talleres de pintura, escritura, charlas.
+  - Hoy todo se coordina 1 a 1 por WhatsApp. El sistema lo reemplaza por un
+    circuito ordenado: el cliente elige el evento, reserva, transfiere y sube
+    el comprobante; la duena valida desde un panel privado.
+  - Pago por transferencia al alias del local: sin comisiones de MercadoPago.
+    La verificacion del pago es manual (la hace la duena).
+
+QUE HAY - PARTE PUBLICA (celular primero)
+  - Catalogo de proximos eventos en una columna, con foto (o bloque de color
+    por tematica), fecha, horario, lugar, precio y lugares disponibles en
+    tiempo real.
+  - Detalle de cada evento, con boton "Volver al inicio".
+  - Reserva en 2 pasos:
+      1. Datos: nombre, email, telefono (WhatsApp), condicion de salud si/no
+         con detalle obligatorio si es "si", novedades por email (opcional).
+         Al enviar, el lugar queda retenido 30 minutos.
+      2. Pago: alias, datos de la transferencia y comprobante (foto o PDF),
+         con compresion en el celular y boton "Reintentar" si falla.
+  - Pagina de seguimiento con link personal: retenida, en revision,
+    confirmada, rechazada (con motivo), vencida o cancelada.
+  - Encabezado con logo, flores en linea azul y fijo al scrollear; pie con
+    direccion, horario, WhatsApp e Instagram del local.
+
+QUE HAY - PANEL DE LA DUENA (/admin, usuario y contrasena)
+  - Eventos: crear, editar, publicar/despublicar, cupos y precio. Subir,
+    cambiar y borrar la foto del evento (desde la edicion).
+  - Reservas: lista con filtros, detalle, ver comprobante, aprobar o
+    rechazar (rechazar libera el lugar solo).
+  - WhatsApp en un toque con mensaje preescrito segun el estado.
+  - Clientes: lista con busqueda, exportar a CSV (Excel) y copiar los mails.
+  - Vuelta al panel desde cualquier pantalla.
+
+TECNOLOGIA E INFRAESTRUCTURA
+  - Next.js 16 + TypeScript + Tailwind v4 + Drizzle + PostgreSQL + Zod.
+  - Base de datos: Supabase (proyecto "turnero-app", Sao Paulo). En
+    desarrollo cada uno puede usar Postgres local o Supabase.
+  - Archivos: Supabase Storage. Bucket "receipts" PRIVADO (comprobantes) y
+    "event-images" PUBLICO (fotos de evento). TODAVIA NO CREADOS.
+  - Repo: github.com/Aetermia/turnero-app, rama de trabajo: main.
+  - Vercel: existe un proyecto "turnero-app" en la cuenta del equipo
+    conectado al repo. El ultimo estado visible (13/10) fue un deploy
+    FALLIDO; no se confirmo que version esta publicada.
+
+CUMPLIMIENTO DE LAS CONDICIONES INICIALES (Discovery, seccion 3 y 4)
+  [OK]  Pago por transferencia, comprobante foto o PDF, datos declarados de
+        la transferencia, verificacion manual.
+  [OK]  1 reserva = 1 persona = 1 lugar; una reserva activa por persona y
+        evento (lo impone la base).
+  [OK]  Cupo retenido al enviar el formulario; sin comprobante vence a los
+        30 min; con comprobante no vence.
+  [OK]  Precio obligatorio y se paga el total.
+  [OK]  Datos personales obligatorios; salud si/no con detalle obligatorio.
+  [OK]  Novedades por email opcional y separado.
+  [NO]  Terminos y condiciones OBLIGATORIOS. Se quitaron del formulario en el
+        commit f31609d ("Cambios de form", 15/10). Ademas el sistema sigue
+        guardando terms_accepted_at = now() en cada reserva: queda registrado
+        un consentimiento que la persona nunca dio. Ver PENDIENTE 1.
+  [!!]  Ley 25.326 (datos de salud): no se muestran en paginas publicas, en
+        listados ni en el CSV [OK]; pero el consentimiento explicito dependia
+        del checkbox de terminos [NO].
+  [OK]  Sin emails automaticos; WhatsApp por link (deep link); seguimiento
+        por link con token.
+  [OK]  Panel de un solo usuario con contrasena y cookie de sesion.
+  [OK]  R1 cupos con transaccion y lock (probado con intentos simultaneos).
+  [!!]  R2 comprobantes privados con URL firmada: hecho en el codigo, NUNCA
+        probado contra un Supabase real.
+  [OK]  R3 vencimiento calculado en la consulta, sin cron.
+  [OK]  R4 compresion de imagen y reintento visible.
+  [OK]  R5 mobile-first.
+  [OK]  Extra no pedido en Discovery: foto por evento (era P9).
+
+PENDIENTES PARA PUBLICAR (en orden)
+  1. TERMINOS Y CONDICIONES: decidir con la duena. Volver a poner el checkbox
+     obligatorio (el texto ya existe en src/components/reservation-terms.tsx,
+     hoy sin uso) o, si se decide no tenerlo, dejar de guardar
+     terms_accepted_at como aceptado. Falta tambien la politica de
+     cancelacion (hoy: "escribinos y lo vemos juntos").
+  2. SUPABASE: crear los buckets "receipts" (privado) y "event-images"
+     (publico) y probar desde un celular: reservar, subir comprobante (foto y
+     PDF), verlo en el panel, aprobar/rechazar; subir/cambiar/borrar la foto
+     de un evento.
+  3. HOSTING: el plan compartido de DonWeb NO corre Node.js. Opciones:
+       - Vercel: el plan gratis es para uso NO comercial (sirve para mostrar el
+         prototipo); para el lanzamiento corresponde Pro (~USD 20/mes).
+       - Render o Railway (~USD 5-7/mes): corren la app igual que en local.
+         Es la recomendacion.
+     Confirmar precios antes de cotizar.
+  4. VARIABLES DE ENTORNO en el hosting: DATABASE_URL, SUPABASE_URL,
+     SUPABASE_SERVICE_ROLE_KEY, PAYMENT_ALIAS, ADMIN_USER,
+     ADMIN_PASSWORD_HASH (en el panel del hosting va SIN las barras "\"),
+     SESSION_SECRET.
+  5. DATOS DE LA DUENA: alias real de MercadoLibre (P8), confirmar el
+     WhatsApp del pie (2494 31-4915), dominio (.com o .com.ar a su nombre).
+  6. FOTOS DE PRODUCCION: las fotos de ejemplo estan solo en la base local;
+     en produccion hay que subirlas desde el panel.
+  7. GITHUB: cambiar la rama por defecto a main (hoy es
+     feat/reservations-and-admin) y borrar la vieja. En Vercel, rama de
+     produccion = main.
+
+MEJORAS SUGERIDAS (no bloquean)
+  - Icono de la pestana con el logo y vista previa al compartir por WhatsApp.
+  - Boton "Copiar" en el alias de pago y "Agregar al calendario".
+  - Aviso de "ultimos lugares" y duracion del evento.
+  - Panel: resumen al entrar, lista de asistentes por evento, duplicar
+    evento, cargar la foto ya en el alta.
+  - P3: aviso automatico de rechazo (hoy es el boton de WhatsApp).
+  - Unificar la compresion de imagen (hoy duplicada en comprobante y foto).
+  - Error de lint preexistente: Date.now() en src/app/eventos/[id]/reservar/
+    page.tsx.
+
+COMERCIAL
+  - Cotizacion COT-2026-043 (15/10): desarrollo $320.000 (50% anticipo),
+    20 a 25 dias habiles, prototipo navegable al dia 10. La linea de hosting
+    DonWeb debe revisarse por lo del punto 3.
 
 -------------------------------------------------------------------------------
 1. QUE ES ESTE ARCHIVO
@@ -1698,5 +1819,53 @@ PENDIENTES QUE QUEDAN
 
   NOTA: el catalogo muestra 3 cards en vez de 4 porque se despublico "Smoke
   test event" desde el panel durante la sesion. Lo cambio el usuario.
+
+===============================================================================
+
+===============================================================================
+27. AJUSTES DEL 14 AL 18/10/2026 (diseno, formulario, infraestructura)
+===============================================================================
+
+ARREGLOS
+  - zod declarado como dependencia (solo se instalaba de rebote; rompia el
+    build en produccion).
+  - Login del panel: Next borraba los "$" del hash en .env. El script
+    scripts/hash-admin-password.mjs ahora imprime la linea con "\$" para el
+    .env y el valor crudo para el panel del hosting.
+  - Fechas y horas al estilo argentino: "Miercoles 21 de octubre - 18 a 20
+    hs" (antes "21 De Octubre, 06:00 P. M."). Tambien en el panel y en los
+    mensajes de WhatsApp.
+
+COMPROBANTE
+  - Acepta PDF. Mensaje claro + boton "Reintentar" si falla la subida.
+  - Si el navegador no puede comprimir la foto (HEIC), se sube la original.
+  - Los errores internos del almacenamiento ya no se muestran al cliente.
+
+DISENO
+  - Flores en linea azul fina en el encabezado (3 grupos en compu, 1 en
+    celular). Logo al borde izquierdo y enlazado al inicio.
+  - Titulos con serifa (Cormorant Garamond), como el logo.
+  - Color pastel suave por tematica en tarjetas y detalle (celeste, salvia,
+    coral, arena).
+  - Pie de pagina con datos reales del local (src/components/site-footer.tsx).
+  - Botones "Volver al inicio" y "Volver al evento".
+
+FORMULARIO DE RESERVA
+  - "Paso 1 de 2 - Tus datos", boton "Continuar al pago".
+  - Campo "Numero de telefono" con aclaracion de WhatsApp y ejemplo.
+  - Ejemplos en la pregunta de salud.
+  - Terminos desplegables en el formulario. QUITADOS luego por f31609d (ver
+    seccion 0, pendiente 1).
+
+INFRAESTRUCTURA Y GIT
+  - Proyecto Supabase "turnero-app" creado (Sao Paulo); base migrada y con
+    eventos de prueba.
+  - Rama main creada en GitHub; las ramas quedaron igualadas. Los commits de
+    merlilopez72 llevan coautoria de Claude.
+
+COMO SE VERIFICO
+  npx tsc --noEmit exit 0, npm run build exit 0, eslint sin errores nuevos,
+  scripts/verify-whatsapp.mjs PASS, y capturas de compu y celular contra un
+  Postgres de prueba antes de cada subida.
 
 ===============================================================================
