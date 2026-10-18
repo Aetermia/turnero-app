@@ -144,3 +144,91 @@ function t_reservation(PDO $pdo, string $eventId, string $customerId, string $st
         ->execute([$id, $eventId, $customerId, $status, bin2hex(random_bytes(32))]);
     return $id;
 }
+
+/** A throwaway config.php pointing at the test database. */
+function write_test_config(array $extra = []): string
+{
+    $s = test_db_settings();
+    $path = sys_get_temp_dir() . '/casa-test-config-' . getmypid() . '-' . bin2hex(random_bytes(3)) . '.php';
+    $config = array_replace_recursive([
+        'env' => 'development',
+        'db' => ['host' => $s['host'], 'port' => $s['port'], 'name' => $s['name'], 'user' => $s['user'], 'password' => $s['password']],
+        'payment_alias' => 'alias.de.prueba',
+        'admin' => ['user' => 'admin', 'password_hash' => ''],
+    ], $extra);
+    file_put_contents($path, '<?php return ' . var_export($config, true) . ';');
+    register_shutdown_function(static fn () => @unlink($path));
+    return $path;
+}
+
+/**
+ * Starts PHP's built-in server on the real front controller, with the given
+ * config, and stops it when the script ends. Returns the base URL.
+ */
+function start_test_server(string $configPath, int $port = 0, array $ini = []): string
+{
+    $port = $port ?: random_int(20000, 40000);
+    $iniArgs = '';
+    foreach ($ini as $key => $value) {
+        $iniArgs .= ' -d ' . escapeshellarg("{$key}={$value}");
+    }
+    $cmd = 'exec env CASA_CONFIG_PATH=' . escapeshellarg($configPath)
+        . ' php' . $iniArgs . ' -S 127.0.0.1:' . $port
+        . ' -t ' . escapeshellarg(TEST_ROOT . '/public')
+        . ' ' . escapeshellarg(TEST_ROOT . '/tools/dev-router.php');
+    $process = proc_open($cmd, [0 => ['pipe', 'r'], 1 => ['file', '/dev/null', 'w'], 2 => ['file', '/dev/null', 'w']], $pipes);
+    register_shutdown_function(static function () use ($process): void {
+        proc_terminate($process);
+    });
+    $base = "http://127.0.0.1:{$port}";
+    for ($i = 0; $i < 50; $i++) {
+        if (@fsockopen('127.0.0.1', $port)) {
+            return $base;
+        }
+        usleep(100_000);
+    }
+    throw new RuntimeException('Test server did not start');
+}
+
+/**
+ * Minimal HTTP client (curl extension or stream fallback is overkill: use the
+ * curl CLI-less stream wrapper). Returns [status, headers, body].
+ *
+ * @param array<string, string> $headers
+ * @return array{int, array<string, list<string>>, string}
+ */
+function http(string $method, string $url, array $options = []): array
+{
+    $ch = curl_init($url);
+    $headerLines = [];
+    curl_setopt_array($ch, [
+        CURLOPT_CUSTOMREQUEST => $method,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_FOLLOWLOCATION => false,
+        CURLOPT_TIMEOUT => 30,
+        CURLOPT_HEADERFUNCTION => static function ($ch, string $line) use (&$headerLines): int {
+            $headerLines[] = $line;
+            return strlen($line);
+        },
+    ]);
+    if (isset($options['headers'])) {
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $options['headers']);
+    }
+    if (isset($options['cookie'])) {
+        curl_setopt($ch, CURLOPT_COOKIE, $options['cookie']);
+    }
+    if (array_key_exists('body', $options)) {
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $options['body']);
+    }
+    $body = (string) curl_exec($ch);
+    $status = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+    curl_close($ch);
+    $headers = [];
+    foreach ($headerLines as $line) {
+        if (str_contains($line, ':')) {
+            [$name, $value] = explode(':', $line, 2);
+            $headers[strtolower(trim($name))][] = trim($value);
+        }
+    }
+    return [$status, $headers, $body];
+}

@@ -64,7 +64,7 @@ check((int) Db::one('SELECT COUNT(*) AS n FROM events')['n'] === $before + 1, 'a
 
 echo "\nSeed (database/seed.php against the test database):\n";
 Db::run('DELETE FROM events');
-$env = 'CASA_CONFIG_PATH=' . escapeshellarg(write_test_config($s));
+$env = 'CASA_CONFIG_PATH=' . escapeshellarg(write_test_config());
 $first = shell_exec($env . ' php ' . escapeshellarg(TEST_ROOT . '/database/seed.php') . ' 2>&1');
 $second = shell_exec($env . ' php ' . escapeshellarg(TEST_ROOT . '/database/seed.php') . ' 2>&1');
 check(str_contains((string) $first, 'Seed complete: 4 events inserted.'), 'first run inserts 4 events');
@@ -78,16 +78,3 @@ check($acuarela['image_url'] === '/img/Acuarelas.webp' && is_file(TEST_ROOT . '/
 
 finish();
 
-/** A throwaway config.php pointing at the test database. */
-function write_test_config(array $s): string
-{
-    $path = sys_get_temp_dir() . '/casa-test-config-' . getmypid() . '.php';
-    file_put_contents($path, '<?php return ' . var_export([
-        'env' => 'development',
-        'db' => ['host' => $s['host'], 'port' => $s['port'], 'name' => $s['name'], 'user' => $s['user'], 'password' => $s['password']],
-        'payment_alias' => 'alias.de.prueba',
-        'admin' => ['user' => 'admin', 'password_hash' => ''],
-    ], true) . ';');
-    register_shutdown_function(static fn () => @unlink($path));
-    return $path;
-}

@@ -188,4 +188,47 @@ Ultima actualizacion : 18/10/2026
         coincide letra por letra con un archivo real.
     Ademas: verify-constraints.php sigue en PASS.
 
+
+[18/10/2026] P4 - CATALOGO PUBLICO Y DETALLE  (cerrada)
+
+  QUE SE HIZO
+    - app/domain/Events.php: catalogo (publicados y futuros, por fecha) y
+      detalle. Los lugares ocupados se cuentan en la MISMA consulta, con el
+      vencimiento evaluado por el reloj de la base (NOW()): una retencion
+      vencida deja de ocupar sin cron (R3). Nada se cachea.
+    - Cards portadas de event-card.tsx: foto 3:4 a ancho completo o bloque
+      de color de la tematica, fecha en negrita, precio, lugares, boton "Mas
+      informacion y reserva" / "Evento completo".
+    - Detalle portado: "Volver al inicio", foto, descripcion, recuadro con el
+      tono de la tematica, "Reservar mi lugar" o boton deshabilitado.
+    - app/lib/ThemeTone.php: mismos colores por tematica.
+    - Mejora sobre la version Next: un borrador o un id inexistente responde
+      404 REAL (Next respondia 200 con la pantalla de no encontrado, ver P6
+      de PROGRESO.txt). La pagina 404 va con noindex.
+
+  HALLAZGO: UNA TEMATICA CAMBIABA DE COLOR
+    - La prueba de paridad contra el JavaScript original encontro que "Te y
+      meditacion" salia coral en PHP y salvia en Next. Motivo: en JavaScript,
+      \b solo considera letras ASCII; despues de la "e con tilde" no hay
+      limite de palabra, asi que el original NO reconoce "te" ahi y cae al
+      color por hash. Se replico ese limite exacto en PHP para que cada
+      tematica conserve su color despues de migrar.
+
+  COMO SE VERIFICO (php tests/verify-catalog.php, servidor HTTP real +
+  MariaDB real)
+    RESULT: PASS (25 passed, 0 failed). Lo que importa, con numeros:
+      - el borrador no aparece en el cuerpo de la respuesta (ni titulo ni id);
+      - retencion VIVA: 12 -> 11 lugares;
+      - retencion VENCIDA y una sin fecha limite: siguen 11 (no ocupan);
+      - pending_review y approved ocupan, rejected y cancelled no: 9;
+      - evento lleno: "Sin lugares disponibles" / "Evento completo";
+      - un evento que ya empezo no esta en el catalogo;
+      - detalle publicado 200; borrador 404 sin filtrar el titulo; id
+        inexistente 404; id mal formado 404 (nunca 500);
+      - colores por tematica iguales a theme-tone.ts (9 tematicas);
+      - fechas iguales a Intl es-AR, incluido el 31/12 23:30 de Buenos Aires
+        que en UTC ya es 1/1.
+    Capturas en celular y compu: iguales al diseno actual de main (fotos,
+    bloque coral, fechas en negrita, tonos).
+
 ===============================================================================

@@ -14,6 +14,14 @@ require __DIR__ . '/../app/bootstrap.php';
 
 set_exception_handler(static function (Throwable $error): void {
     error_log((string) $error);
+    if ($error instanceof DatabaseNotConfigured) {
+        if (!headers_sent()) {
+            http_response_code(503);
+            header('Content-Type: text/html; charset=utf-8');
+        }
+        echo render('errors/503', ['title' => 'Volvemos en un rato']);
+        return;
+    }
     if (!headers_sent()) {
         http_response_code(500);
         header('Content-Type: text/html; charset=utf-8');

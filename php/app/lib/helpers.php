@@ -64,7 +64,7 @@ function redirect(string $location, int $status = 303): never
 
 function not_found(): never
 {
-    respond('errors/404', ['title' => 'Página no encontrada'], 404);
+    respond('errors/404', ['title' => 'Página no encontrada', 'noindex' => true], 404);
     exit;
 }
 

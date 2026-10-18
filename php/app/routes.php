@@ -8,8 +8,7 @@ declare(strict_types=1);
 
 $router = new Router();
 
-$router->get('/', static function (): void {
-    respond('home');
-});
+$router->get('/', PublicController::home(...));
+$router->get('/eventos/{id}', PublicController::event(...));
 
 return $router;
