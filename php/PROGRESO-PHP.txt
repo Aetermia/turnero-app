@@ -231,4 +231,67 @@ Ultima actualizacion : 18/10/2026
     Capturas en celular y compu: iguales al diseno actual de main (fotos,
     bloque coral, fechas en negrita, tonos).
 
+
+[18/10/2026] P5 - FORMULARIO DE RESERVA Y TRANSACCION DE CUPO (R1)  (cerrada)
+
+  QUE SE HIZO
+    - app/domain/Reservations.php, Reservations::create(): UNA transaccion
+      InnoDB:
+        1. SELECT ... FROM events WHERE id = ? FOR UPDATE  (serializa todos
+           los intentos sobre ese evento);
+        2. evento publicado y por empezar (reloj de la base);
+        3. cuenta de ocupados con el mismo predicado del catalogo (vencimiento
+           en SQL);
+        4. upsert del cliente por email (INSERT ... ON DUPLICATE KEY UPDATE);
+        5. materializa como 'expired' las retenciones vencidas de esa persona
+           en ese evento (igual que T10), asi el indice unico no la bloquea
+           para siempre;
+        6. inserta la reserva: pending_no_receipt, vence en NOW() + 30 min,
+           terms_accepted_at NULL (D2).
+      Un 1062 del indice unico se traduce a "ya tenes una reserva", nunca a
+      un error 500. Un deadlock (1213) o lock timeout (1205) se reintenta
+      hasta 3 veces: es InnoDB pidiendo reintentar, no una falla real.
+    - app/lib/Validation.php: port del schema Zod con los mismos mensajes,
+      mas topes de largo que en Next no existian (en Next un WhatsApp de mas
+      de 32 caracteres hubiera dado error de base).
+    - Formulario portado (sin terminos): mismos textos, ayuda del telefono,
+      ejemplos de salud, "Contanos cual" solo si responde Si, consentimiento
+      de novedades opcional y separado, "Continuar al pago". Si hay errores,
+      conserva lo escrito y responde 422. Si sale bien, 303 al link secreto
+      (Post/Redirect/Get).
+    - JS minimo (public/assets/js/reservation-form.js): muestra/oculta
+      "Contanos cual" y deshabilita el boton al enviar. Sin JS el formulario
+      funciona igual.
+    - CSRF en el POST. Pagina /reservas/{token} minima (se completa en P6 y
+      P10).
+
+  COMO SE VERIFICO (php tests/verify-concurrency.php)
+    Los "trabajadores" son procesos PHP separados, cada uno con su propia
+    conexion, que llaman al Reservations::create REAL y se largan todos en
+    el mismo instante contra MariaDB.
+    RESULT: PASS (43 passed, 0 failed):
+      - evento de 1 lugar, 8 intentos simultaneos: 1 aceptado, 7 sin cupo,
+        1 fila en la base. Repetido 5 rondas;
+      - evento de 5 lugares, MISMO email 2 veces en paralelo (en mayusculas
+        y minusculas): 1 ok + 1 already_reserved. 3 rondas;
+      - evento de 3 lugares, 10 intentos: exactamente 3 aceptados;
+      - retencion VIVA bloquea a la misma persona; VENCIDA la deja volver a
+        reservar y queda guardada como 'expired'; en un evento de 1 lugar, la
+        vencida libera el lugar para otra persona;
+      - borrador y evento empezado: not_found;
+      - HTTP: sin token CSRF o con token falso -> 403; datos invalidos -> 422
+        con los mensajes del original y sin tocar la base; reserva valida ->
+        303 a /reservas/<token de 43 caracteres>; email guardado en
+        minusculas y sin espacios; tildes intactas; vence en 30 min por el
+        reloj de la base; salud y consentimiento guardados;
+        terms_accepted_at NULL; con "No" se descarta el texto de salud;
+        reservar dos veces y evento lleno muestran los mensajes del original;
+        cookie de sesion HttpOnly + SameSite=Lax; 404 para borrador, evento
+        empezado y link secreto inexistente.
+    CONTRAPRUEBA (RED): sacando a mano el FOR UPDATE, el mismo test da
+    RESULT: FAIL: en un evento de 1 lugar entraron 7, 8, 6 y 6 personas, y
+    en uno de 3 lugares entraron 10. Es exactamente la sobreventa que R1
+    prohibe. Con el lock restaurado vuelve a PASS.
+    Captura del formulario con errores en celular: igual al original.
+
 ===============================================================================

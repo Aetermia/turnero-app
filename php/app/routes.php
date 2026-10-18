@@ -10,5 +10,8 @@ $router = new Router();
 
 $router->get('/', PublicController::home(...));
 $router->get('/eventos/{id}', PublicController::event(...));
+$router->get('/eventos/{id}/reservar', BookingController::form(...));
+$router->post('/eventos/{id}/reservar', BookingController::submit(...));
+$router->get('/reservas/{token}', ReservationController::show(...));
 
 return $router;

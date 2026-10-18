@@ -58,6 +58,17 @@ final class Events
     }
 
     /**
+     * Whether the event starts in the future, by the DATABASE clock (the same
+     * clock the booking transaction checks again under the lock).
+     *
+     * @param array<string, mixed> $event
+     */
+    public static function hasNotStarted(array $event): bool
+    {
+        return (bool) Db::one('SELECT CAST(? AS DATETIME) > NOW() AS upcoming', [$event['starts_at']])['upcoming'];
+    }
+
+    /**
      * @param array<string, mixed> $row
      * @return array<string, mixed>
      */
