@@ -112,4 +112,39 @@ Ultima actualizacion : 18/10/2026
     - Capturas en compu y celular: encabezado, flores, tipografias y pie
       iguales a la version Next.
 
+
+[18/10/2026] P2 - MODELO DE DATOS  (cerrada)
+
+  QUE SE HIZO
+    - database/schema.sql: events, customers, reservations. Mismo modelo que
+      src/db/schema.ts. InnoDB, utf8mb4_unicode_ci, fechas en UTC, precio
+      DECIMAL(10,2), ids VARCHAR(36) (ver hallazgo de P1).
+    - "Una reserva activa por persona y evento" sin indices parciales:
+      columna generada active_customer_id = customer_id si el estado GUARDADO
+      ocupa cupo, NULL si no; indice unico (event_id, active_customer_id).
+      Un indice unico admite muchos NULL, asi que rechazada, vencida y
+      cancelada nunca bloquean.
+    - terms_accepted_at NULLABLE (decision D2).
+    - FKs ON DELETE RESTRICT, token publico unico, email unico.
+    - tests/lib/harness.php: cada verificacion corre contra una base REAL
+      (casa_test) que se borra y se recrea desde schema.sql. Se niega a
+      resetear una base cuyo nombre no termine en _test.
+
+  COMO SE VERIFICO (php tests/verify-constraints.php, MariaDB 10.11)
+    RESULT: PASS (19 passed, 0 failed). Lo que importa:
+      - la 2a reserva activa de la misma persona en el mismo evento es
+        RECHAZADA por la base: 1062 "Duplicate entry ... for key
+        reservations_active_per_person_unique";
+      - sigue rechazada mientras la primera esta en pending_review o approved;
+      - tras RECHAZAR la primera, la misma persona PUEDE volver a reservar;
+        lo mismo tras expired y cancelled;
+      - otra persona u otro evento no chocan;
+      - el historial queda: 4 filas (3 cerradas + 1 activa);
+      - token repetido y email repetido rechazados (1062);
+      - no se puede borrar un evento ni una persona con reservas (1451);
+      - el precio vuelve como string '15000.00'.
+    CONTRAPRUEBA (RED): borrando a mano el indice unico del schema, el mismo
+    script da RESULT: FAIL (5 fallas). O sea: no es que el indice exista, es
+    que muerde. Se restauro el schema y vuelve a PASS.
+
 ===============================================================================
