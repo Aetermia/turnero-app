@@ -228,4 +228,37 @@ final class Validation
     {
         return Format::local($utc)->format('Y-m-d\TH:i');
     }
+
+    /**
+     * Reservation list filters from the URL (anybody can edit it): a bad value
+     * is IGNORED, never an error, so "no filter" is always null.
+     *
+     * @param array<string, mixed> $query
+     * @return array{eventId: string|null, status: string|null}
+     */
+    public static function reservationFilters(array $query): array
+    {
+        $eventId = $query['eventId'] ?? null;
+        $status = $query['status'] ?? null;
+        return [
+            'eventId' => is_string($eventId) && is_uuid(strtolower($eventId)) ? strtolower($eventId) : null,
+            'status' => is_string($status) && in_array($status, ReservationsAdmin::STATUSES, true) ? $status : null,
+        ];
+    }
+
+    /**
+     * Optional rejection reason: trimmed, at most 500 characters, empty => null.
+     *
+     * @param array<string, mixed> $post
+     * @return array{errors: array<string, string>, value: string|null}
+     */
+    public static function rejectionReason(array $post): array
+    {
+        $raw = $post['rejectionReason'] ?? '';
+        $reason = is_string($raw) ? (string) preg_replace('/^\s+|\s+$/u', '', $raw) : '';
+        if (mb_strlen($reason) > 500) {
+            return ['errors' => ['rejectionReason' => 'El motivo no puede superar los 500 caracteres'], 'value' => null];
+        }
+        return ['errors' => [], 'value' => $reason === '' ? null : $reason];
+    }
 }

@@ -477,4 +477,74 @@ Ultima actualizacion : 18/10/2026
     aplica el .htaccess (Apache/LiteSpeed), que el servidor de PHP local no
     lee. Hay que comprobarlo en DonWeb (ver P13).
 
+P9 - Gestion de reservas en el panel (aprobar, rechazar, comprobante)
+-------------------------------------------------------------------------------
+  QUE SE HIZO
+    - app/domain/ReservationsAdmin.php: listado, detalle, aprobar y rechazar
+      (port de la parte admin de src/lib/reservations.ts).
+    - Aprobar y rechazar son UN UPDATE condicional cada uno:
+      "... WHERE id = ? AND status = 'pending_review'". Solo cambia una
+      reserva que sigue en revision; doble clic o dos pestanas -> la segunda
+      vez devuelve false y no toca nada. Aprobar guarda resolved_at;
+      rechazar guarda el motivo y resolved_at.
+    - Rechazar libera el lugar SOLO: la cuenta de cupos deja de contar la
+      fila y la columna generada active_customer_id pasa a NULL, asi que la
+      misma persona puede volver a reservar. Aprobar no cambia ninguna cuenta.
+    - Filtros del listado (evento y estado) desde la URL: un valor invalido
+      se IGNORA (lista completa), nunca un 500. El estado filtra por el
+      estado EFECTIVO: una retencion sin pagar vencida aparece y se filtra
+      como "Expirada" sin cron (R3).
+    - Ley 25.326: el listado NO selecciona las columnas de salud ni el token.
+      Solo el detalle, detras de la sesion de admin, muestra la condicion,
+      con la misma nota legal que el original.
+    - R2: el comprobante se sirve solo desde /admin/reservas/{id}/comprobante.
+      Sin sesion de admin -> 307 al login y cero bytes. Con sesion: el
+      archivo sale de storage/receipts (fuera de public_html) con el
+      Content-Type guardado, nosniff, no-store e inline. En Next era una URL
+      firmada de Supabase; aca no hace falta firmar nada porque no existe
+      ninguna URL publica del archivo. Una ruta alterada en la base que
+      apunte fuera de la carpeta -> 404.
+    - Motivo del rechazo: opcional, se recorta, maximo 500 caracteres
+      ("El motivo no puede superar los 500 caracteres"), vacio -> NULL.
+    - CSRF en aprobar y rechazar. Pantallas y textos portados del original:
+      listado con filtros y "Limpiar", detalle con cliente, evento, datos
+      declarados, salud, comprobante (imagen embebida o boton para el PDF)
+      y Resolucion. Los avisos "ya no esta pendiente de revision" son los
+      del original.
+    - La seccion "Contactar por WhatsApp" del detalle va en P11.
+
+  COMO SE VERIFICO (php tests/verify-reservations-admin.php)
+    RESULT: PASS (68 passed, 0 failed). Lo que importa:
+      - evento de 5 con 2 ocupados: aprobar -> sigue 2/3 (cuentas identicas);
+        rechazar -> 1/4 (se libera exactamente un lugar) y esa persona puede
+        volver a reservar;
+      - evento de 1 lugar: en revision -> agotado; aprobado -> sigue agotado;
+        rechazado -> la siguiente persona consigue el lugar;
+      - solo pending_review se resuelve: doble clic true/false; una reserva
+        aprobada no se puede rechazar; sin comprobante, expirada, cancelada
+        y rechazada no cambian; ids mal formados -> false/null/404;
+      - CARRERA: 5 rondas de 4 "aprobar" + 4 "rechazar" en procesos
+        separados al mismo instante: en cada ronda gana exactamente UNA
+        llamada y el estado final es el del ganador (gano aprobar 3 veces y
+        rechazar 2);
+      - el listado (datos y HTML) no tiene la condicion de salud ni el
+        token; el filtro "Expirada" incluye la retencion vencida;
+      - COMPROBANTE SIN SESION: lista, detalle y archivo -> 307 sin datos;
+        cookie inventada -> 307 con cuerpo vacio; sesion de visitante sin
+        login -> 307; adivinar /storage/receipts/..., /receipts/...,
+        /../storage/... o /uploads/... -> 404;
+      - con sesion: el archivo llega byte por byte, image/webp o
+        application/pdf, nosniff, no-store, inline; sin comprobante -> 404;
+      - HTTP: sin CSRF -> 403 y nada cambia; motivo de 501 -> 422; rechazar
+        -> 303 y un lugar mas libre; rechazar de nuevo -> 409 con el mensaje
+        original; aprobar una rechazada -> ?error=not_pending con el aviso.
+    CONTRAPRUEBAS (se rompio el codigo a proposito y se restauro):
+      - sin "AND status = 'pending_review'": 5 tests FALLAN (la carrera
+        termina con varios ganadores, se rechaza una aprobada, etc.);
+      - sin Auth::requireAdmin() en el comprobante: 3 tests FALLAN (el
+        archivo se abre sin sesion).
+    Las 7 verificaciones anteriores siguen en PASS.
+    Capturas del listado (celular) y del detalle (computadora) revisadas:
+    misma estetica del panel y el comprobante se ve por la URL protegida.
+
 ===============================================================================

@@ -17,7 +17,7 @@ final class Receipts
     public const FORMATS_LABEL = 'JPG, PNG, WEBP, HEIC o PDF';
 
     /** Detected MIME type => stored extension. */
-    private const ALLOWED = [
+    public const ALLOWED = [
         'image/jpeg' => 'jpg',
         'image/png' => 'png',
         'image/webp' => 'webp',

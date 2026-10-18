@@ -29,5 +29,10 @@ $router->post('/admin/eventos/{id}', AdminEventsController::update(...));
 $router->post('/admin/eventos/{id}/publicar', AdminEventsController::publish(...));
 $router->post('/admin/eventos/{id}/foto', AdminEventsController::uploadPhoto(...));
 $router->post('/admin/eventos/{id}/foto/quitar', AdminEventsController::removePhoto(...));
+$router->get('/admin/reservas', AdminReservationsController::index(...));
+$router->get('/admin/reservas/{id}', AdminReservationsController::show(...));
+$router->post('/admin/reservas/{id}/aprobar', AdminReservationsController::approve(...));
+$router->post('/admin/reservas/{id}/rechazar', AdminReservationsController::reject(...));
+$router->get('/admin/reservas/{id}/comprobante', AdminReservationsController::receipt(...));
 
 return $router;
