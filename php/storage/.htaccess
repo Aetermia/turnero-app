@@ -1,0 +1,4 @@
+# This folder must live OUTSIDE public_html. If it ever ends up inside it by
+# mistake, refuse every request so receipts are never served directly.
+Require all denied
+Deny from all

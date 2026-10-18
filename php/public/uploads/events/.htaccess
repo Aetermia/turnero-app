@@ -1,0 +1,6 @@
+# Uploaded event photos are served as plain images. Nothing in this folder may
+# ever run as code, even if a crafted file slipped past the upload checks.
+<FilesMatch "\.(php|phtml|phar|php\d|pht|cgi|pl|py|sh)$">
+  Require all denied
+</FilesMatch>
+Options -Indexes -ExecCGI

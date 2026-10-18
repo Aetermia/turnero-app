@@ -1,0 +1,16 @@
+# Front controller: every request that is not an existing file goes to
+# index.php. Directory listings are off everywhere.
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteRule ^ index.php [L,QSA]
+</IfModule>
+
+# Static assets can be cached; the CSS URL carries a version parameter.
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType font/woff2 "access plus 1 year"
+  ExpiresByType image/webp "access plus 1 month"
+</IfModule>

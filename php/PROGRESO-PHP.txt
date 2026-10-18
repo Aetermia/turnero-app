@@ -1,0 +1,115 @@
+===============================================================================
+  CASA DE ANTON - MIGRACION A PHP + MYSQL
+  REGISTRO DE DESARROLLO
+===============================================================================
+
+Rama                 : feat/php-mysql (local, sin push hasta autorizacion)
+Referencia           : el proyecto Next.js de la raiz (src/). NO se toca.
+Especificacion       : PROGRESO.txt y odd/tasks/sistema-reservas.md.
+Ultima actualizacion : 18/10/2026
+
+-------------------------------------------------------------------------------
+1. POR QUE ESTA MIGRACION
+-------------------------------------------------------------------------------
+
+  - El hosting elegido es el Plan Emprendedor de DonWeb: hosting compartido
+    pensado para WordPress (PHP + MySQL/MariaDB, LiteSpeed). No corre Node.js,
+    asi que la version Next.js no se puede alojar ahi.
+  - Se reescribe el sistema en PHP para que corra en ese plan, con el mismo
+    comportamiento para el cliente y para la duena.
+  - Todo el codigo nuevo vive en php/. Al final, y solo con aprobacion, se
+    elimina Next.js y php/ pasa a la raiz.
+
+-------------------------------------------------------------------------------
+2. DECISIONES
+-------------------------------------------------------------------------------
+
+  D1. PHP 8 PURO CON PDO, sin framework. Motivo: es lo mas simple y economico
+      de mantener en un hosting compartido. No depende de Composer ni de SSH
+      en el servidor: se sube por el administrador de archivos o por Git de
+      cPanel y funciona.
+  D2. SIN TERMINOS Y CONDICIONES en el formulario, igual que main hoy
+      (commit f31609d). A diferencia de main, NO se registra una aceptacion
+      que la persona no dio: terms_accepted_at queda NULL.
+  D3. Fechas guardadas en UTC (cada conexion hace SET time_zone = '+00:00',
+      asi NOW() es UTC) y mostradas en hora de Buenos Aires.
+  D4. Tailwind se compila en desarrollo (php/package.json, solo herramienta)
+      y el CSS resultante se commitea. El servidor no necesita Node.
+  D5. Tipografias (Montserrat y Cormorant Garamond) servidas desde el propio
+      sitio, como hace next/font: el navegador no le pide nada a Google.
+  D6. Estructura: public/ va a public_html; app/, config/ y storage/ van UN
+      NIVEL ARRIBA, fuera del alcance de una URL (R2 y credenciales).
+
+-------------------------------------------------------------------------------
+3. DATOS DEL HOSTING (Plan Emprendedor DonWeb)
+-------------------------------------------------------------------------------
+
+  Lo que dice la publicidad del plan: 40 GB NVMe, SSL gratis, dominio gratis,
+  10 casillas, backups semanales, Git integrado, WordPress preinstalado,
+  LiteSpeed. NO informa: version de PHP, version de MySQL/MariaDB, limite de
+  subida de archivos.
+
+  Para no adivinar: php/tools/check-hosting.php. Se sube a public_html, se abre
+  en el navegador y dice si el hosting cumple (ver P1). Minimos:
+    - PHP 8.1+ con pdo_mysql, fileinfo, mbstring
+    - MySQL 5.7.8+ o MariaDB 10.2+ con InnoDB
+    - upload_max_filesize y post_max_size de 9 MB o mas (PDF de hasta 8 MB)
+  PENDIENTE: correrlo en DonWeb antes del despliegue.
+
+-------------------------------------------------------------------------------
+4. REGISTRO POR TAREA
+-------------------------------------------------------------------------------
+
+[18/10/2026] P1 - BOOTSTRAP  (cerrada)
+
+  QUE SE HIZO
+    - Estructura php/{public,app,config,storage,database,tests,tools,tailwind}.
+    - public/index.php: unico punto de entrada; manejador de errores que
+      responde una pagina 500 amable (nunca un stack trace) y headers de
+      seguridad (nosniff, X-Frame-Options DENY, Referrer-Policy).
+    - public/.htaccess: todo lo que no es un archivo real va a index.php; sin
+      listado de carpetas.
+    - Router minimo: metodo + patron; 404 si no matchea, 405 si el metodo no
+      corresponde.
+    - Config (config/config.php, fuera del repo): si falta, el sitio no se
+      cae y el panel no deja entrar a nadie (falla cerrado; se completa en P7).
+    - Sesion con cookie HttpOnly + SameSite=Lax + Secure en produccion, y CSRF
+      con token por sesion comparado en tiempo constante.
+    - Layout portado: encabezado fijo con logo y las mismas flores en linea
+      azul (misma geometria SVG que floral-garland.tsx), pie con los datos del
+      local, boton "Volver al inicio", paginas 404/500/503/CSRF.
+    - storage/.htaccess niega todo (por si alguien lo sube dentro de
+      public_html por error) y public/uploads/events/.htaccess impide ejecutar
+      codigo en la carpeta de fotos.
+    - tools/check-hosting.php y tools/dev-router.php (servidor local).
+
+  HALLAZGO IMPORTANTE (gracias al chequeo de hosting, antes de escribir el
+  schema)
+    - MariaDB RECHAZA una columna generada que usa columnas CHAR: error 1901
+      "cannot be used in the GENERATED ALWAYS AS clause". Pasa incluso con
+      CONCAT(col, '') o IF(1=1, col, NULL). Motivo: el valor de un CHAR
+      depende del sql_mode PAD_CHAR_TO_FULL_LENGTH, y MariaDB no acepta
+      expresiones no deterministas en columnas generadas.
+    - Consecuencia: los ids (UUID) van como VARCHAR(36), no CHAR(36). Con
+      VARCHAR la columna generada funciona y el indice unico muerde
+      ("Duplicate entry 'a' for key 'u'"). Se corrigio el chequeo de hosting
+      y se aplica en el schema (P2).
+
+  COMO SE VERIFICO
+    - php -l de todos los archivos: sin errores.
+    - Servidor real (php -S + tools/dev-router.php):
+        GET /                    -> 200 (con encabezado, 3 guirnaldas, pie)
+        GET /no-existe           -> 404
+        POST /                   -> 405
+        GET /assets/app.css      -> 200 text/css
+        GET /img/logo.webp       -> 200 image/webp
+        GET fuente woff2         -> 200 font/woff2
+      Headers de seguridad presentes en la respuesta.
+    - check-hosting.php contra MariaDB 10.11 real:
+        con upload 2M / post 8M  -> marca NO en los dos limites (detecta bien)
+        con 16M / 16M            -> "Todo listo: el hosting cumple"
+        columna generada + indice unico -> "funciona"
+    - Capturas en compu y celular: encabezado, flores, tipografias y pie
+      iguales a la version Next.
+
+===============================================================================

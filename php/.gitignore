@@ -1,0 +1,16 @@
+# Credentials and the payment alias live here: never in the repository.
+/config/config.php
+
+# Build tooling for the stylesheet (the compiled app.css IS committed).
+/node_modules/
+
+# Runtime data: receipts are personal data, logs may contain them.
+/storage/receipts/*
+!/storage/receipts/.gitkeep
+/storage/logs/*
+!/storage/logs/.gitkeep
+
+# Event photos uploaded from the panel (the sample photos live in public/img).
+/public/uploads/events/*
+!/public/uploads/events/.gitkeep
+!/public/uploads/events/.htaccess
