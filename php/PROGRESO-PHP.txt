@@ -147,4 +147,45 @@ Ultima actualizacion : 18/10/2026
     script da RESULT: FAIL (5 fallas). O sea: no es que el indice exista, es
     que muerde. Se restauro el schema y vuelve a PASS.
 
+
+[18/10/2026] P3 - CONEXION Y DATOS DE PRUEBA  (cerrada)
+
+  QUE SE HIZO
+    - app/lib/Db.php: conexion PDO perezosa (se abre recien cuando una pagina
+      la necesita), prepared statements reales, utf8mb4, excepciones en todo
+      error, SET time_zone = '+00:00' en cada conexion, y Db::transaction()
+      que hace commit si sale bien y rollback si algo falla.
+    - Si config.php no tiene base cargada, Db lanza DatabaseNotConfigured: el
+      sitio muestra "Volvemos en un rato" en vez de un error tecnico.
+    - app/lib/Format.php: portado de format.ts con la MISMA salida (fechas en
+      espanol, "18 a 20 hs", "$ 15.000,00" con espacio duro como Intl,
+      etiquetas de estado). Sin depender de la extension intl, que muchos
+      hostings no tienen.
+    - database/seed.php: los mismos 4 eventos de src/db/seed.ts (3
+      publicados + 1 borrador), con las 2 fotos de ejemplo. Las horas se
+      calculan en hora de Buenos Aires (18 hs) y se guardan en UTC (21:00).
+      Idempotente.
+
+  HALLAZGO MENOR
+    - PDO devuelve ATTR_EMULATE_PREPARES como entero (0), no como booleano: la
+      primera version del test comparaba con false y fallaba aunque la
+      emulacion SI estaba apagada. Se corrigio el test y se agrego una prueba
+      mas fuerte: el contador Com_stmt_prepare del propio servidor sube, o
+      sea que el servidor recibe un PREPARE real.
+
+  COMO SE VERIFICO (php tests/verify-connection.php, MariaDB 10.11)
+    RESULT: PASS (18 passed, 0 failed):
+      - time_zone +00:00 y NOW() == UTC_TIMESTAMP();
+      - emulacion apagada y PREPARE real en el servidor;
+      - charset utf8mb4 en cliente, conexion y resultados;
+      - "Circulo ... nandu" con tildes, enie y emoji vuelve identico, y los
+        bytes guardados (HEX) son exactamente los UTF-8 enviados;
+      - DECIMAL vuelve como string; Format::price da "$ 1.234,50";
+      - una excepcion dentro de Db::transaction deshace el insert y no deja
+        la transaccion abierta; una exitosa hace commit;
+      - el seed inserta 4 eventos la primera vez y se saltea la segunda;
+      - el taller de acuarela queda a las "18 hs" de Buenos Aires y su foto
+        coincide letra por letra con un archivo real.
+    Ademas: verify-constraints.php sigue en PASS.
+
 ===============================================================================
