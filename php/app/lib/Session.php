@@ -19,6 +19,17 @@ final class Session
         }
         ini_set('session.use_strict_mode', '1');
         ini_set('session.use_only_cookies', '1');
+        // Our own folder (outside public_html) and our own lifetime: on shared
+        // hosting the default /tmp folder is cleaned with other sites' rules,
+        // which would log the owner out after ~24 minutes.
+        $path = STORAGE_DIR . '/sessions';
+        if (!is_dir($path)) {
+            @mkdir($path, 0700, true);
+        }
+        if (is_dir($path) && is_writable($path)) {
+            session_save_path($path);
+        }
+        ini_set('session.gc_maxlifetime', (string) Auth::SESSION_SECONDS);
         session_name(self::NAME);
         session_set_cookie_params([
             'lifetime' => 0,
@@ -28,6 +39,22 @@ final class Session
             'samesite' => 'Lax',
         ]);
         session_start();
+    }
+
+    /**
+     * Re-sends the session cookie with a lifetime (seconds), or as a browser
+     * session cookie with 0. Same flags as start().
+     */
+    public static function extendCookie(int $seconds): void
+    {
+        self::start();
+        setcookie(session_name(), (string) session_id(), [
+            'expires' => $seconds > 0 ? time() + $seconds : 0,
+            'path' => '/',
+            'secure' => Config::isProduction() || is_https(),
+            'httponly' => true,
+            'samesite' => 'Lax',
+        ]);
     }
 
     /** New session id on privilege change (login/logout), against fixation. */

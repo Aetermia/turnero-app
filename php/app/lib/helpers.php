@@ -127,3 +127,23 @@ function is_uuid(string $value): bool
 {
     return (bool) preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/', $value);
 }
+
+/**
+ * Renders a panel screen: the view inside the shared panel frame, inside the
+ * site layout. Panel pages are never indexed and never cached.
+ *
+ * @param array<string, mixed> $data
+ */
+function admin_respond(string $view, array $data, string $adminUser, bool $isDashboard = false, int $status = 200): void
+{
+    $panelContent = render_partial($view, $data);
+    $content = render_partial('admin/frame', [
+        'adminUser' => $adminUser,
+        'panelContent' => $panelContent,
+        'isDashboard' => $isDashboard,
+    ]);
+    http_response_code($status);
+    header('Content-Type: text/html; charset=utf-8');
+    header('Cache-Control: no-store');
+    echo render_partial('layout', $data + ['content' => $content, 'noindex' => true]);
+}

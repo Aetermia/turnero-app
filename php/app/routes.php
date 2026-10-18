@@ -16,4 +16,10 @@ $router->get('/reservas/{token}', ReservationController::show(...));
 $router->post('/reservas/{token}/comprobante', ReservationController::upload(...));
 $router->post('/reservas/{token}/confirmar', ReservationController::confirm(...));
 
+// Admin panel. /admin/login is the only panel URL reachable without a session.
+$router->get('/admin/login', AdminController::loginForm(...));
+$router->post('/admin/login', AdminController::login(...));
+$router->post('/admin/logout', AdminController::logout(...));
+$router->get('/admin', AdminController::dashboard(...));
+
 return $router;

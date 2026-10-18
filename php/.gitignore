@@ -9,6 +9,8 @@
 !/storage/receipts/.gitkeep
 /storage/logs/*
 !/storage/logs/.gitkeep
+/storage/sessions/*
+!/storage/sessions/.gitkeep
 
 # Event photos uploaded from the panel (the sample photos live in public/img).
 /public/uploads/events/*

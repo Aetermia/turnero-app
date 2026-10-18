@@ -370,4 +370,48 @@ Ultima actualizacion : 18/10/2026
     El test borra los archivos que crea (storage/receipts queda vacio).
     Captura de la pagina de pago en celular: igual al original.
 
+
+[18/10/2026] P7 - ACCESO AL PANEL  (cerrada)
+
+  QUE SE HIZO
+    - app/lib/Auth.php: un solo usuario. La contrasena vive solo como
+      password_hash() en config.php (nunca en la base ni en el codigo). Al
+      entrar se regenera el id de sesion (sin fijacion de sesion) y se guarda
+      un vencimiento absoluto de 7 dias, igual que el Max-Age de la cookie de
+      Next. Siempre corre un password_verify (aunque el usuario este mal) para
+      no revelar cual de los dos fallo.
+    - Falla cerrado: sin usuario o con un hash vacio o invalido en config.php
+      no entra nadie, escriba lo que escriba.
+    - Sesiones en storage/sessions (fuera de public_html) con vida de 7 dias.
+      Motivo: en un hosting compartido la carpeta /tmp por defecto se limpia
+      con reglas de otros sitios y deslogueaba a la duena a los ~24 minutos.
+    - CSRF en login y logout. Cookie HttpOnly + SameSite=Lax, y Secure en
+      produccion.
+    - Pantallas portadas: login (mismos textos y errores), marco del panel
+      ("Sesion de ...", "Volver al panel" oculto en el inicio, "Cerrar
+      sesion") y el inicio del panel con las 3 tarjetas.
+    - tools/hash-admin-password.php: imprime la linea para config.php.
+      (Reemplaza al hash scrypt de Next y a su problema con los "$" en .env:
+      aca la config es un archivo PHP, no hay expansion de variables.)
+
+  COMO SE VERIFICO (php tests/verify-auth.php, HTTP real)
+    RESULT: PASS (31 passed, 0 failed). La misma matriz que T7:
+      /admin/login sin sesion            -> 200 (sin bucle)
+      /admin sin sesion                  -> 307 a /admin/login, sin contenido
+      login sin token CSRF               -> 403
+      contrasena incorrecta              -> 303 ?error=credentials, sin acceso
+      usuario incorrecto                 -> igual
+      contrasena correcta                -> 303 /admin, id de sesion NUEVO,
+                                            HttpOnly, SameSite=Lax,
+                                            Max-Age=604800 (7 dias)
+      cookie valida                      -> 200 con el panel (noindex)
+      id de sesion de ANTES del login    -> 307
+      id inventado / con 1 caracter
+      cambiado                           -> 307
+      sesion VENCIDA                     -> 307
+      logout sin CSRF -> 403; logout -> 303 y la cookie vieja ya no sirve
+      hash vacio, invalido o la contrasena en texto plano como "hash", o
+      usuario vacio                      -> ?error=config y panel cerrado
+      env=production                     -> cookie Secure; sin stack traces
+
 ===============================================================================
