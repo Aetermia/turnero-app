@@ -414,4 +414,67 @@ Ultima actualizacion : 18/10/2026
       usuario vacio                      -> ?error=config y panel cerrado
       env=production                     -> cookie Secure; sin stack traces
 
+
+[18/10/2026] P8 - EVENTOS DESDE EL PANEL (ALTA, EDICION, PUBLICACION, FOTO)  (cerrada)
+
+  QUE SE HIZO
+    - app/domain/EventsAdmin.php: listado (con borradores), alta, edicion,
+      publicar/despublicar y foto. Mismo predicado de cupos que el catalogo.
+    - GUARDIA DE CAPACIDAD (misma familia que R1): un solo UPDATE cuyo WHERE
+      compara la capacidad nueva con la cuenta SQL de ocupados (vencimiento
+      por NOW()), dentro de una transaccion que primero toma el lock de la
+      fila del evento, el mismo lock que usa la reserva. Ninguna reserva se
+      trae a PHP para decidir.
+    - Validacion portada de event-schema.ts con los mismos mensajes. Las
+      fechas del formulario (datetime-local) se interpretan como hora de
+      Buenos Aires y se guardan en UTC.
+    - Despublicar solo cambia is_published: las reservas quedan intactas.
+      No se borra un evento (las FKs son RESTRICT), igual que en Next.
+    - FOTO DEL EVENTO: es contenido publico (se ve en el catalogo), asi que
+      va en public/uploads/events/<id>/ (equivale al bucket publico de
+      Supabase). El .htaccess de esa carpeta no deja ejecutar codigo. El
+      tipo se decide por contenido y el nombre lo genera el servidor; al
+      reemplazar o quitar, se borra el archivo anterior, pero NUNCA las fotos
+      de ejemplo de /img. Compresion en el navegador (JPEG 0.85, 1600 px),
+      igual que en Next.
+    - Pantallas portadas: listado con Publicado/Borrador, "N de M lugares
+      ocupados", Editar y Publicar/Despublicar; formulario de alta y
+      edicion; seccion "Foto del evento" con Elegir/Guardar/Quitar foto.
+    - Igual que en Next, la foto se carga editando el evento (en el alta
+      todavia no existe el id).
+
+  HALLAZGO EN EL TEST (no en la app)
+    - "Quitar foto" parecia no borrar el archivo. La app SI lo borraba: el
+      test preguntaba is_file() sobre el mismo archivo que habia consultado
+      antes y PHP le devolvia el resultado cacheado. Se agrego
+      clearstatcache() al test.
+
+  COMO SE VERIFICO (php tests/verify-events-admin.php)
+    RESULT: PASS (39 passed, 0 failed). Lo que importa:
+      - ocupados = 3 (aprobada + en revision + retencion viva); la retencion
+        vencida, cancelada, rechazada y expirada no cuentan;
+      - capacidad 2 con 3 ocupados -> RECHAZADA y queda en 10; capacidad 3
+        con 3 ocupados -> ACEPTADA (limite exacto);
+      - ids desconocidos o mal formados -> not_found / null / false, nunca
+        un 500;
+      - despublicar lo saca del catalogo sin tocar sus reservas;
+      - CARRERA: 10 rondas de "bajar la capacidad a 1" contra "una reserva
+        nueva" al mismo instante sobre un evento de 2 con 1 ocupado. A veces
+        gana la reserva (4) y a veces el recorte (6), pero NUNCA quedan mas
+        lugares ocupados que la capacidad;
+      - HTTP: sin sesion -> 307 (ni la pantalla ni el POST); sin CSRF -> 403;
+        datos invalidos -> 422 con los mensajes del original; alta valida ->
+        303; 18:00 y 20:30 de Buenos Aires quedan 21:00 y 23:30 UTC; precio
+        "9500,50" -> 9500.50; aparece en el catalogo como "18 a 20:30 hs";
+        el formulario de edicion muestra 18:00 de vuelta; bajar capacidad
+        por debajo de lo ocupado muestra "No podes bajar la capacidad...";
+      - foto: un archivo PHP (aunque se llame .php) se rechaza; un JPEG se
+        guarda con nombre del servidor y se sirve como imagen; reemplazar
+        borra el anterior; "Quitar foto" limpia y borra; reemplazar una foto
+        de ejemplo no borra el archivo de /img; sin sesion -> 307.
+    Capturas del panel (inicio, listado, edicion con foto): iguales a Next.
+    PENDIENTE DE DESPLIEGUE: el bloqueo de ejecucion en uploads/events lo
+    aplica el .htaccess (Apache/LiteSpeed), que el servidor de PHP local no
+    lee. Hay que comprobarlo en DonWeb (ver P13).
+
 ===============================================================================

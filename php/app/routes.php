@@ -21,5 +21,13 @@ $router->get('/admin/login', AdminController::loginForm(...));
 $router->post('/admin/login', AdminController::login(...));
 $router->post('/admin/logout', AdminController::logout(...));
 $router->get('/admin', AdminController::dashboard(...));
+$router->get('/admin/eventos', AdminEventsController::index(...));
+$router->get('/admin/eventos/nuevo', AdminEventsController::newForm(...));
+$router->post('/admin/eventos/nuevo', AdminEventsController::create(...));
+$router->get('/admin/eventos/{id}', AdminEventsController::editForm(...));
+$router->post('/admin/eventos/{id}', AdminEventsController::update(...));
+$router->post('/admin/eventos/{id}/publicar', AdminEventsController::publish(...));
+$router->post('/admin/eventos/{id}/foto', AdminEventsController::uploadPhoto(...));
+$router->post('/admin/eventos/{id}/foto/quitar', AdminEventsController::removePhoto(...));
 
 return $router;

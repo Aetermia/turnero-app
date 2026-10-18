@@ -129,4 +129,103 @@ final class Validation
             'errors' => $errors,
         ];
     }
+
+    /**
+     * Event form, create and edit (port of src/lib/event-schema.ts). Dates
+     * come from <input type="datetime-local"> in Buenos Aires wall-clock time
+     * and leave here as UTC DATETIME strings.
+     *
+     * @param array<string, mixed> $post
+     * @return array{values: array<string, mixed>, errors: array<string, string>}
+     */
+    public static function event(array $post): array
+    {
+        $errors = [];
+        $str = static fn (string $key): string => isset($post[$key]) && is_string($post[$key]) ? trim($post[$key]) : '';
+        $optional = static fn (string $key) => $str($key) === '' ? null : $str($key);
+
+        $title = $str('title');
+        if ($title === '') {
+            $errors['title'] = 'Ingresá un título';
+        } elseif (mb_strlen($title) > 200) {
+            $errors['title'] = 'El título es demasiado largo';
+        }
+        $theme = $optional('theme');
+        if ($theme !== null && mb_strlen($theme) > 100) {
+            $errors['theme'] = 'La temática es demasiado larga';
+        }
+        $location = $optional('location');
+        if ($location !== null && mb_strlen($location) > 200) {
+            $errors['location'] = 'El lugar es demasiado largo';
+        }
+
+        $startsAt = self::buenosAiresToUtc($str('startsAt'));
+        if ($startsAt === false) {
+            $errors['startsAt'] = 'Completá la fecha y hora de inicio';
+        }
+        $endsAt = self::buenosAiresToUtc($str('endsAt'));
+        if ($endsAt === false) {
+            $errors['endsAt'] = 'Completá la fecha y hora de fin';
+        }
+        if ($startsAt !== false && $endsAt !== false && $endsAt <= $startsAt) {
+            $errors['endsAt'] = 'El fin tiene que ser posterior al inicio';
+        }
+
+        $capacity = $str('capacity');
+        if (!preg_match('/^\d+$/', $capacity)) {
+            $errors['capacity'] = 'Ingresá un número entero';
+        } elseif ((int) $capacity <= 0) {
+            $errors['capacity'] = 'La capacidad tiene que ser mayor a cero';
+        } elseif (strlen(ltrim($capacity, '0')) > 6 || (int) $capacity > 100000) {
+            $errors['capacity'] = 'La capacidad es demasiado grande';
+        }
+
+        // The price stays a string: DECIMAL must never go through a float. The
+        // comma is what an Argentine keyboard types first. Zero is rejected
+        // without parsing the money.
+        $price = $str('price');
+        if (!preg_match('/^(?!0+([.,]0{1,2})?$)\d{1,8}([.,]\d{1,2})?$/', $price)) {
+            // An empty field gets the same message as in the original (Zod's
+            // regex runs on the empty string too).
+            $errors['price'] = 'Ingresá un precio válido (por ejemplo 15000 o 15000,50)';
+        }
+
+        return [
+            'values' => [
+                'title' => $title,
+                'theme' => $theme,
+                'description' => $optional('description'),
+                'location' => $location,
+                'starts_at' => $startsAt === false ? null : $startsAt,
+                'ends_at' => $endsAt === false ? null : $endsAt,
+                'capacity' => (int) $capacity,
+                'price' => str_replace(',', '.', $price),
+                'is_published' => ($post['isPublished'] ?? null) === 'on',
+            ],
+            'errors' => $errors,
+        ];
+    }
+
+    /**
+     * "2026-10-17T18:00" (Buenos Aires wall clock, what datetime-local sends)
+     * => "2026-10-17 21:00:00" (UTC), or false when it is not a real date.
+     */
+    public static function buenosAiresToUtc(string $value): string|false
+    {
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/', $value)) {
+            return false;
+        }
+        $format = strlen($value) === 16 ? '!Y-m-d\TH:i' : '!Y-m-d\TH:i:s';
+        $local = DateTimeImmutable::createFromFormat($format, $value, new DateTimeZone(Format::TIMEZONE));
+        if ($local === false || $local->format(substr($format, 1)) !== $value) {
+            return false;
+        }
+        return $local->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s');
+    }
+
+    /** UTC DATETIME => "2026-10-17T18:00" for a datetime-local input. */
+    public static function utcToBuenosAiresInput(string $utc): string
+    {
+        return Format::local($utc)->format('Y-m-d\TH:i');
+    }
 }
