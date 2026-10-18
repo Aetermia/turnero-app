@@ -138,6 +138,132 @@ final class Reservations
         });
     }
 
+    /**
+     * Everything the public, token-only page shows, and nothing else. The
+     * declared health condition is deliberately NOT selected: it is sensitive
+     * data (Ley 25.326) and this page needs no login, only the token.
+     *
+     * @return array<string, mixed>|null
+     */
+    public static function byToken(string $token): ?array
+    {
+        if (!self::isWellFormedToken($token)) {
+            return null;
+        }
+        return Db::one(
+            'SELECT r.id, r.public_token, r.status, ' . self::EFFECTIVE_STATUS . ' AS effective_status,
+                    r.expires_at, r.created_at, r.event_id, e.title AS event_title,
+                    e.starts_at AS event_starts_at, e.price AS event_price,
+                    r.transfer_holder, r.transfer_amount, r.transfer_date, r.transfer_reference,
+                    r.rejection_reason, r.receipt_path IS NOT NULL AS has_receipt, r.receipt_mime_type
+             FROM reservations r JOIN events e ON e.id = r.event_id
+             WHERE r.public_token = ?',
+            [$token],
+        );
+    }
+
+    /**
+     * Stores the receipt of a live hold. The file goes to private storage and
+     * its path is written to the database right away, so the confirmation
+     * step never trusts a path sent by the browser. While the hold is still
+     * pending the person may replace it (e.g. after picking the wrong file);
+     * the previous file is deleted.
+     *
+     * @param array<string, mixed> $file a $_FILES entry that passed Receipts::validate()
+     * @return array{ok: true}|array{ok: false, error: string}
+     */
+    public static function attachReceipt(string $token, array $file): array
+    {
+        $reservation = self::byToken($token);
+        if ($reservation === null) {
+            return ['ok' => false, 'error' => 'Reserva no encontrada'];
+        }
+        if ($reservation['effective_status'] === 'expired') {
+            return ['ok' => false, 'error' => 'La reserva ya expiró. No es posible completar el pago'];
+        }
+        if ($reservation['effective_status'] !== 'pending_no_receipt') {
+            return ['ok' => false, 'error' => 'No es posible subir el comprobante en el estado actual'];
+        }
+
+        [$path, $type] = Receipts::store($reservation['id'], $file);
+        $previous = Db::one('SELECT receipt_path FROM reservations WHERE id = ?', [$reservation['id']])['receipt_path'] ?? null;
+        // Conditional on the hold still being live by the database clock, so
+        // a receipt is never attached to a hold that expired meanwhile.
+        $updated = Db::run(
+            "UPDATE reservations
+             SET receipt_path = ?, receipt_mime_type = ?, receipt_uploaded_at = NOW()
+             WHERE id = ? AND status = 'pending_no_receipt' AND expires_at > NOW()",
+            [$path, $type, $reservation['id']],
+        );
+        if ($updated === 0) {
+            Receipts::delete($path);
+            return ['ok' => false, 'error' => 'La reserva ya expiró. No es posible completar el pago'];
+        }
+        if ($previous !== null && $previous !== $path) {
+            Receipts::delete($previous);
+        }
+        return ['ok' => true];
+    }
+
+    /**
+     * Step 2 of the payment: the declared transfer data. Moves the hold to
+     * pending_review and clears its deadline: from here on only the owner can
+     * release the seat. A single conditional UPDATE, so a hold that expires
+     * at the same instant can never be confirmed.
+     *
+     * @param array{transfer_holder: string, transfer_amount: string, transfer_date: string, transfer_reference: string} $data
+     * @return array{ok: true}|array{ok: false, error: string}
+     */
+    public static function confirmPayment(string $token, array $data): array
+    {
+        $reservation = self::byToken($token);
+        if ($reservation === null) {
+            return ['ok' => false, 'error' => 'Reserva no encontrada'];
+        }
+        if ($reservation['effective_status'] === 'expired') {
+            return ['ok' => false, 'error' => 'La reserva ya expiró. No es posible completar el pago'];
+        }
+        if ($reservation['effective_status'] !== 'pending_no_receipt') {
+            return ['ok' => false, 'error' => 'No es posible completar la reserva en el estado actual'];
+        }
+        if (!(bool) $reservation['has_receipt']) {
+            return ['ok' => false, 'error' => 'Falta el comprobante subido'];
+        }
+        if (self::cents($data['transfer_amount']) !== self::cents((string) $reservation['event_price'])) {
+            return ['ok' => false, 'error' => sprintf(
+                'El monto declarado ($%s) no coincide con el total del evento ($%s). Verificá el monto transferido.',
+                self::plainAmount($data['transfer_amount']),
+                self::plainAmount((string) $reservation['event_price']),
+            )];
+        }
+
+        $updated = Db::run(
+            "UPDATE reservations
+             SET status = 'pending_review', expires_at = NULL,
+                 transfer_holder = ?, transfer_amount = ?, transfer_date = ?, transfer_reference = ?
+             WHERE id = ? AND status = 'pending_no_receipt' AND expires_at > NOW() AND receipt_path IS NOT NULL",
+            [$data['transfer_holder'], $data['transfer_amount'], $data['transfer_date'], $data['transfer_reference'], $reservation['id']],
+        );
+        if ($updated === 0) {
+            return ['ok' => false, 'error' => 'La reserva ya expiró. No es posible completar el pago'];
+        }
+        return ['ok' => true];
+    }
+
+    /** "15000" / "15000.5" / "15000.50" => 1500000. Integer cents, never a float. */
+    private static function cents(string $amount): int
+    {
+        [$whole, $fraction] = array_pad(explode('.', $amount, 2), 2, '');
+        return (int) $whole * 100 + (int) str_pad(substr($fraction, 0, 2), 2, '0');
+    }
+
+    /** Same text as JavaScript's Number(x).toFixed(2): "15000.00". */
+    private static function plainAmount(string $amount): string
+    {
+        $cents = self::cents($amount);
+        return intdiv($cents, 100) . '.' . str_pad((string) ($cents % 100), 2, '0', STR_PAD_LEFT);
+    }
+
     /** 32 random bytes, base64url without padding (same as the Next.js version). */
     public static function newToken(): string
     {

@@ -294,4 +294,80 @@ Ultima actualizacion : 18/10/2026
     prohibe. Con el lock restaurado vuelve a PASS.
     Captura del formulario con errores en celular: igual al original.
 
+
+[18/10/2026] P6 - COMPROBANTE Y DATOS DE LA TRANSFERENCIA  (cerrada)
+
+  QUE SE HIZO
+    - app/lib/Receipts.php: los comprobantes se guardan en storage/receipts
+      (FUERA de public_html). El tipo se decide por el CONTENIDO del archivo
+      (finfo), nunca por el nombre ni por lo que dice el navegador. El nombre
+      lo genera el servidor. Tope de 8 MB.
+    - Paso 1 (subir): el archivo va al servidor PHP (no hay bucket con URL
+      firmada como en Supabase), se guarda y su ruta se escribe en la base EN
+      ESE MOMENTO, con la condicion de que la retencion siga viva por el
+      reloj de la base. Mientras siga pendiente se puede reemplazar (se borra
+      el anterior).
+    - Paso 2 (confirmar): titular, monto, fecha y nro. de operacion. El
+      servidor usa la ruta que ya esta en la base, NUNCA una ruta que mande
+      el navegador. Un solo UPDATE condicional pasa a pending_review y borra
+      el vencimiento: una retencion que vence en ese mismo instante no se
+      puede confirmar.
+    - El monto declarado tiene que ser igual al precio, comparado en
+      centavos enteros (sin float), con el mismo mensaje del original.
+    - Pagina /reservas/{token} completa, con los 6 estados del original y sin
+      datos de salud.
+    - public/assets/js/upload.js (R4): compresion en el navegador (canvas,
+      JPEG 0.8, max 1600 px), PDF tal cual, HEIC que el navegador no puede
+      leer se manda original, mensaje "No pudimos subir el comprobante.
+      Revisa tu conexion y toca Reintentar" + boton "Reintentar". Sin JS
+      funciona como formulario comun.
+
+  BUGS DEL ORIGINAL QUE NO SE PORTARON
+    - En Next, si la persona RECARGABA la pagina despues de subir el
+      comprobante, quedaba trabada: el servidor decia "Ya se subio el
+      comprobante" y la confirmacion decia "Falta el comprobante" (la ruta
+      vivia solo en la memoria del navegador). Aca la ruta vive en la base:
+      al recargar se ve "Comprobante cargado" y el formulario de la
+      transferencia.
+    - En Next la fecha de transferencia aceptaba cualquier texto (la base lo
+      hubiera rechazado con error). Aca se valida como fecha real.
+
+  BUG PROPIO QUE ENCONTRO EL NAVEGADOR (corregido)
+    - Si la persona tocaba "Subir comprobante" mientras la foto todavia se
+      estaba comprimiendo, aparecia "Elegi el comprobante" aunque ya lo
+      habia elegido. Ahora el boton dice "Preparando..." y queda
+      deshabilitado hasta que la foto esta lista.
+    - Tambien: el mensaje "Falta el comprobante subido" no se veia, porque
+      se dibujaba dentro del formulario de la transferencia, que no existe
+      si no hay comprobante. Corregido.
+
+  COMO SE VERIFICO (php tests/verify-receipt.php, HTTP real + Chromium real
+  + MariaDB real)
+    RESULT: PASS (45 passed, 0 failed). Lo que importa:
+      - sin token CSRF -> 403 (subida y confirmacion);
+      - un texto renombrado .jpg y un archivo PHP disfrazado de .jpg se
+        rechazan por su contenido; un archivo de 9 MB se rechaza; ninguno
+        queda guardado;
+      - un JPEG real se acepta y queda en storage/receipts, fuera de public/;
+        5 URLs publicas probadas, ninguna lo sirve;
+      - un PDF lo reemplaza, el anterior se borra, el PDF queda byte a byte;
+      - sin JS: vuelve a la pagina con el error y el boton "Reintentar";
+      - un cuerpo mayor a post_max_size responde "El archivo supera los 8MB"
+        (no un falso error de CSRF);
+      - confirmacion: mensajes del original; monto distinto -> "El monto
+        declarado ($14000.00) no coincide con el total del evento
+        ($15000.00)..." (mismo texto); monto correcto con coma -> 303,
+        pending_review, sin vencimiento, datos guardados; ya no se puede
+        subir otro comprobante;
+      - sin comprobante -> "Falta el comprobante subido";
+      - retencion vencida: no puede subir ni confirmar;
+      - EN CHROMIUM: con la conexion cortada a proposito aparece el mensaje
+        y el boton "Reintentar"; al tocarlo con la conexion de vuelta sube y
+        muestra el formulario; una foto de camara de 4000x3000 (4.6 MB) se
+        comprimio en el navegador a JPEG de 1600x1200 (811 KB); un PDF
+        elegido en el navegador llega byte a byte; mientras comprime, el
+        boton esta deshabilitado.
+    El test borra los archivos que crea (storage/receipts queda vacio).
+    Captura de la pagina de pago en celular: igual al original.
+
 ===============================================================================

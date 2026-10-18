@@ -71,4 +71,62 @@ final class Validation
             'errors' => $errors,
         ];
     }
+
+    /**
+     * Payment step: declared transfer data (port of completeReservationSchema).
+     *
+     * @param array<string, mixed> $post
+     * @return array{values: array<string, string>, errors: array<string, string>}
+     */
+    public static function transfer(array $post): array
+    {
+        $errors = [];
+        $str = static fn (string $key): string => isset($post[$key]) && is_string($post[$key]) ? trim($post[$key]) : '';
+
+        $holder = $str('transferHolder');
+        if ($holder === '') {
+            $errors['transferHolder'] = 'Ingresá el titular de la transferencia';
+        } elseif (mb_strlen($holder) > 200) {
+            $errors['transferHolder'] = 'El titular es demasiado largo';
+        }
+
+        $amount = $str('transferAmount');
+        if ($amount === '') {
+            $errors['transferAmount'] = 'Ingresá el monto transferido';
+        } elseif (!preg_match('/^\d+(\.\d{1,2})?$/', $amount) && !preg_match('/^\d+(,\d{1,2})?$/', $amount)) {
+            $errors['transferAmount'] = 'Formato de monto inválido (ej. 15000 o 15000.50)';
+        } elseif (strlen(explode(',', str_replace('.', ',', $amount))[0]) > 8) {
+            $errors['transferAmount'] = 'Formato de monto inválido (ej. 15000 o 15000.50)';
+        }
+        $amount = str_replace(',', '.', $amount);
+
+        // A real calendar date: the original accepted any text here, which
+        // the database would have rejected with an error.
+        $date = $str('transferDate');
+        if ($date === '') {
+            $errors['transferDate'] = 'Ingresá la fecha de transferencia';
+        } else {
+            $parsed = DateTimeImmutable::createFromFormat('!Y-m-d', $date);
+            if ($parsed === false || $parsed->format('Y-m-d') !== $date) {
+                $errors['transferDate'] = 'Ingresá una fecha válida';
+            }
+        }
+
+        $reference = $str('transferReference');
+        if ($reference === '') {
+            $errors['transferReference'] = 'Ingresá el número de operación';
+        } elseif (mb_strlen($reference) > 100) {
+            $errors['transferReference'] = 'El número de operación es demasiado largo';
+        }
+
+        return [
+            'values' => [
+                'transfer_holder' => $holder,
+                'transfer_amount' => $amount,
+                'transfer_date' => $date,
+                'transfer_reference' => $reference,
+            ],
+            'errors' => $errors,
+        ];
+    }
 }

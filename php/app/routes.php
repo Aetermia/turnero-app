@@ -13,5 +13,7 @@ $router->get('/eventos/{id}', PublicController::event(...));
 $router->get('/eventos/{id}/reservar', BookingController::form(...));
 $router->post('/eventos/{id}/reservar', BookingController::submit(...));
 $router->get('/reservas/{token}', ReservationController::show(...));
+$router->post('/reservas/{token}/comprobante', ReservationController::upload(...));
+$router->post('/reservas/{token}/confirmar', ReservationController::confirm(...));
 
 return $router;
