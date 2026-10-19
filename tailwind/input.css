@@ -1,6 +1,7 @@
-@import "tailwindcss";
+@import "tailwindcss" source(none);
 
-/* Scan the PHP views and the browser scripts for class names. */
+/* Scan ONLY the PHP views and the browser scripts for class names (source(none)
+   turns off the automatic scan, which would also read the docs). */
 @source "../app";
 @source "../public/assets/js";
 

@@ -1,50 +1,23 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# Credentials and the payment alias live here: never in the repository.
+/config/config.php
 
-# dependencies
-/node_modules
-/.pnp
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
+# Build tooling for the stylesheet (the compiled app.css IS committed).
+/node_modules/
 
-# testing
-/coverage
+# Runtime data: receipts are personal data, logs may contain them.
+/storage/receipts/*
+!/storage/receipts/.gitkeep
+/storage/logs/*
+!/storage/logs/.gitkeep
+/storage/sessions/*
+!/storage/sessions/.gitkeep
 
-# next.js
-/.next/
-/out/
+# Event photos uploaded from the panel (the sample photos live in public/img).
+/public/uploads/events/*
+!/public/uploads/events/.gitkeep
+!/public/uploads/events/.htaccess
+/dist/
 
-# production
-/build
-
-# misc
+# Local leftovers and OS files.
 .DS_Store
-*.pem
-
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-
-# env files (can opt-in for committing if needed)
-# .env.example is a template with placeholder values: it IS meant to be committed,
-# because it documents which variables the app needs.
 .env*
-!.env.example
-
-# vercel
-.vercel
-
-# typescript
-*.tsbuildinfo
-next-env.d.ts
-
-# gentle-ai generated skill registry (machine-specific absolute paths, regenerated on demand)
-.atl/
-
-# downloaded client exports (transient, never part of the site)
-public/clientes-*.csv

@@ -88,7 +88,7 @@ contraseñas no se puedan abrir desde el navegador.
    guardan las fotos de los eventos).
 
 > **Sobre "Git integrado":** también se puede clonar el repositorio en el
-> servidor, pero entonces la carpeta pública es `php/public` y no
+> servidor, pero entonces la carpeta pública es `public/` (dentro del repositorio) y no
 > `public_html`. Hasta saber si DonWeb permite cambiar la carpeta pública, el
 > camino seguro es el zip.
 

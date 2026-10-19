@@ -4,10 +4,10 @@
 ===============================================================================
 
 Ultima actualizacion : 19/10/2026
-Estado general       : MIGRADO A PHP + MySQL para el Plan Emprendedor de DonWeb
-                       (rama local feat/php-mysql, tareas P1 a P13 terminadas y
-                       verificadas). Falta: probar en DonWeb, aprobar el paso
-                       final (borrar Next.js y dejar php/ en la raiz) y subir.
+Estado general       : MIGRADO A PHP + MySQL para el Plan Emprendedor de DonWeb.
+                       Tareas P1 a P13 terminadas y verificadas; la version
+                       Next.js se elimino y el codigo PHP esta en la raiz, en
+                       main. Falta: probar e instalar en DonWeb.
                        Ver seccion 0 (estado actual) y seccion 28.
 
 -------------------------------------------------------------------------------
@@ -29,11 +29,11 @@ CAMBIO IMPORTANTE (19/10/2026): NUEVA TECNOLOGIA
     falta pagar Vercel, Render ni Supabase: todo vive en DonWeb.
   - Se comporta IGUAL que la version Next.js para el cliente y para la
     duena: mismas pantallas, mismos textos, mismas direcciones (URL).
-  - El codigo nuevo esta en la carpeta php/ de la rama feat/php-mysql
-    (solo en la compu, sin subir a GitHub todavia). La version Next.js sigue
-    intacta en src/ como referencia hasta que se apruebe el paso final.
-  - Detalle completo tarea por tarea: php/PROGRESO-PHP.txt.
-  - Como subirlo a DonWeb: php/DEPLOY-DONWEB.md.
+  - El codigo PHP esta en la raiz del repositorio, en la rama main. La
+    version Next.js se elimino (queda en el historial de git, hasta el
+    commit 5bcb4ad, por si hiciera falta consultarla).
+  - Detalle completo tarea por tarea: PROGRESO-PHP.txt.
+  - Como subirlo a DonWeb: DEPLOY-DONWEB.md.
 
 QUE HAY - PARTE PUBLICA (celular primero)
   - Catalogo de proximos eventos en una columna, con foto (o bloque de color
@@ -109,27 +109,24 @@ CUMPLIMIENTO DE LAS CONDICIONES INICIALES (Discovery, seccion 3 y 4)
 
 VERIFICACIONES DE LA VERSION PHP
   13 scripts de prueba contra una base real, 423 pruebas, 0 fallas
-  (php php/tests/run-all.php). Incluyen las 6 pruebas pedidas: concurrencia
+  (php tests/run-all.php). Incluyen las 6 pruebas pedidas: concurrencia
   de cupos, mismo email en paralelo, retencion vencida, aprobar/rechazar,
   comprobante sin sesion y CSV sin datos de salud; y un recorrido completo
   de la clienta y la duena.
 
 PENDIENTES PARA PUBLICAR (en orden)
-  1. PROBAR EL HOSTING: subir php/tools/check-hosting.php a DonWeb y ver que
+  1. PROBAR EL HOSTING: subir tools/check-hosting.php a DonWeb y ver que
      todo salga en verde (PHP 8.1+, MySQL, limite de subida de 9 MB). Si algo
-     sale en rojo, frenar y avisar. Paso 0 de php/DEPLOY-DONWEB.md.
-  2. APROBAR EL PASO FINAL: borrar la version Next.js, dejar php/ en la raiz
-     y volver a correr todas las pruebas. Solo con aprobacion.
-  3. SUBIR A GITHUB Y A main: solo con autorizacion.
-  4. INSTALAR EN DONWEB siguiendo php/DEPLOY-DONWEB.md (base de datos,
+     sale en rojo, frenar y avisar. Paso 0 de DEPLOY-DONWEB.md.
+  2. INSTALAR EN DONWEB siguiendo DEPLOY-DONWEB.md (base de datos,
      archivos, config.php, HTTPS) y hacer las comprobaciones del Paso 6.
-  5. DATOS DE LA DUENA: alias real de Mercado Pago, confirmar el WhatsApp
+  3. DATOS DE LA DUENA: alias real de Mercado Pago, confirmar el WhatsApp
      del pie (2494 31-4915), dominio (.com o .com.ar a su nombre), usuario y
      contrasena del panel.
-  6. FOTOS DE PRODUCCION: se suben desde el panel una vez online.
-  7. GITHUB: cambiar la rama por defecto a main (hoy es
+  4. FOTOS DE PRODUCCION: se suben desde el panel una vez online.
+  5. GITHUB: cambiar la rama por defecto a main (hoy es
      feat/reservations-and-admin) y borrar las ramas viejas.
-  8. Politica de cancelacion (hoy: "escribinos y lo vemos juntos").
+  6. Politica de cancelacion (hoy: "escribinos y lo vemos juntos").
 
 MEJORAS SUGERIDAS (no bloquean)
   - Icono de la pestana con el logo y vista previa al compartir por WhatsApp.
@@ -1901,7 +1898,7 @@ COMO SE TRABAJO
   - Cada regla importante tiene una "contraprueba": se rompio el codigo a
     proposito y se comprobo que la prueba falla.
 
-TAREAS (detalle en php/PROGRESO-PHP.txt)
+TAREAS (detalle en PROGRESO-PHP.txt)
   P1  Estructura base, configuracion, estilos y chequeo del hosting.
   P2  Base de datos MySQL y la regla "una reserva activa por persona".
   P3  Conexion a la base, formatos en castellano y eventos de ejemplo.
@@ -1927,7 +1924,9 @@ DIFERENCIAS CON LA VERSION NEXT.JS (todas a favor o neutras)
 RESULTADO
   - 13 scripts de prueba, 423 pruebas, 0 fallas.
   - Commits en feat/php-mysql: 774560f ... f8f2ea5 (uno por tarea).
-    Sin push ni merge: esperan autorizacion.
+  - Paso final (aprobado): se elimino la version Next.js, el contenido de
+    php/ paso a la raiz y se volvieron a correr todas las pruebas (PASS).
+    Mergeado a main y subido a GitHub.
   - Pendientes: ver seccion 0, "PENDIENTES PARA PUBLICAR".
 
 ===============================================================================

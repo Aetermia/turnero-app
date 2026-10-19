@@ -3,8 +3,9 @@
   REGISTRO DE DESARROLLO
 ===============================================================================
 
-Rama                 : feat/php-mysql (local, sin push hasta autorizacion)
-Referencia           : el proyecto Next.js de la raiz (src/). NO se toca.
+Rama                 : feat/php-mysql, mergeada a main (paso final aprobado)
+Referencia           : el proyecto Next.js (src/), eliminado en el paso final;
+                       queda en el historial de git hasta el commit 5bcb4ad.
 Especificacion       : PROGRESO.txt y odd/tasks/sistema-reservas.md.
 Ultima actualizacion : 19/10/2026 (P1 a P13 terminadas)
 
@@ -767,8 +768,32 @@ P13 - Revision lado a lado, guia de DonWeb y cierre
     - Correr check-hosting.php en DonWeb (DEPLOY-DONWEB.md, Paso 0). Si algo
       sale en rojo, se frena y se avisa.
     - En DonWeb: comprobar que uploads/events no ejecuta PHP (Paso 6.6).
-    - Tarea final, SOLO con aprobacion: borrar Next.js, mover php/ a la raiz
-      y volver a correr php tests/run-all.php.
-    - Push y merge a main, SOLO con autorizacion.
+    - (Hecho, ver PASO FINAL) borrar Next.js, mover php/ a la raiz, merge y
+      push a main.
+
+PASO FINAL - Next.js eliminado y php/ en la raiz (aprobado por el usuario)
+-------------------------------------------------------------------------------
+  QUE SE HIZO
+    - Se eliminaron del repositorio los archivos de la version Next.js: src/,
+      scripts/, drizzle/, public/ (sus 3 imagenes ya estaban copiadas en
+      public/img), package.json y package-lock.json de Next, next.config.ts,
+      tsconfig.json, eslint.config.mjs, drizzle.config.ts, .env.example y
+      AGENTS.md. Siguen disponibles en el historial de git (commit 5bcb4ad).
+    - Todo lo de php/ paso a la raiz con "git mv" (se conserva la historia de
+      cada archivo). config/config.php, storage/ y las fotos subidas (que no
+      estan en git) se movieron junto con sus carpetas.
+    - Se conservaron: PROGRESO.txt (actualizado), odd/ (especificacion),
+      .gitattributes y README.md (reescrito para la version PHP).
+    - Los restos locales de Next (.next, node_modules de Next) se sacaron de
+      la carpeta del proyecto sin borrarlos.
+    - HALLAZGO: Tailwind v4 tambien revisa por su cuenta la carpeta donde se
+      ejecuta; en la raiz leia PROGRESO.txt y agregaba clases que el sitio no
+      usa. Se agrego source(none) en tailwind/input.css para que lea SOLO
+      app/ y public/assets/js. El CSS final tiene exactamente las clases que
+      usan las paginas.
+
+  COMO SE VERIFICO
+    php tests/run-all.php desde la raiz -> TODO OK: 13 scripts, 423 pruebas,
+    0 fallas (incluye el armado y prueba del zip para DonWeb).
 
 ===============================================================================
