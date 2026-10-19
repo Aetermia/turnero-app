@@ -547,4 +547,40 @@ P9 - Gestion de reservas en el panel (aprobar, rechazar, comprobante)
     Capturas del listado (celular) y del detalle (computadora) revisadas:
     misma estetica del panel y el comprobante se ve por la URL protegida.
 
+P10 - Vencimiento de 30 minutos y pagina de seguimiento (R3)
+-------------------------------------------------------------------------------
+  QUE SE HIZO
+    - Nada que cambiar en la app: el vencimiento y la pagina ya estaban
+      construidos en P5/P6. Esta tarea es la verificacion dedicada, con la
+      pagina comparada texto por texto contra src/app/reservas/[token].
+    - Recordatorio de como funciona (R3, sin cron): expires_at se guarda
+      como NOW() + 30 minutos. Cada lectura decide en SQL, con NOW(), si la
+      retencion sigue viva. La cuenta de cupos y el estado efectivo usan la
+      misma condicion, asi que una reserva vencida deja de ocupar lugar en
+      el mismo instante en que la pagina empieza a decir "El plazo vencio".
+      La fila solo se pasa a 'expired' en la base cuando hace falta (al
+      volver a reservar la misma persona), dentro de esa transaccion.
+
+  COMO SE VERIFICO (php tests/verify-status-page.php)
+    RESULT: PASS (32 passed, 0 failed). Lo que importa:
+      - una retencion nueva vence a los 1800 s de NOW();
+      - TIEMPO REAL, SIN CRON: una retencion a 2 s de vencer muestra "Te
+        guardamos el lugar"; 3 s despues, sin que nadie escriba nada, la
+        misma pagina dice "El plazo vencio", el evento de 1 lugar pasa a 0
+        ocupados, otra persona consigue el lugar y el evento vuelve a quedar
+        lleno (nunca mas de 1); el panel la filtra como "Expirada";
+      - la misma persona reserva de nuevo despues de vencer (token nuevo) y
+        la fila vieja queda 'expired'; su enlace viejo sigue andando y
+        ofrece "Ver el evento y reservar de nuevo";
+      - los 6 estados con los textos del original, el evento y el total; el
+        formulario de pago solo mientras la retencion esta viva;
+      - en NINGUN estado aparece la condicion de salud, el nombre, el email
+        ni el WhatsApp (Ley 25.326);
+      - tokens invalidos o inventados -> 404 noindex sin datos; la pagina es
+        noindex y el token no se filtra por el Referer.
+    CONTRAPRUEBAS:
+      - cuenta de cupos sin "expires_at > NOW()": 2 tests FALLAN (la
+        retencion vencida sigue ocupando el lugar);
+      - estado efectivo sin el CASE de vencimiento: 3 tests FALLAN.
+
 ===============================================================================
