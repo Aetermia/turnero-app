@@ -5,10 +5,15 @@
  * IT afterwards: it reveals the PHP and database versions.
  *
  * Optionally it also tests the database: fill in the four values below with
- * the database created in cPanel. Leave them empty to skip that part.
+ * the database created in the hosting panel. Leave them empty to skip that part.
+ *
+ * Written on purpose in old PHP syntax (5.4+): its job is to REPORT an old
+ * PHP version, so it must not crash on one before printing anything.
  */
 
-declare(strict_types=1);
+// Show problems on screen instead of a blank "error 500" page.
+ini_set('display_errors', '1');
+error_reporting(E_ALL);
 
 $db = [
     'host' => 'localhost',
@@ -17,40 +22,43 @@ $db = [
     'password' => '',
 ];
 
-/** @var list<array{string, bool, string}> $checks */
-$checks = [];
+$checks = array();
 
-function bytes_from_ini(string $value): int
+function bytes_from_ini($value)
 {
-    $value = trim($value);
+    $value = trim((string) $value);
     $unit = strtolower(substr($value, -1));
     $number = (int) $value;
-    return match ($unit) {
-        'g' => $number * 1024 ** 3,
-        'm' => $number * 1024 ** 2,
-        'k' => $number * 1024,
-        default => (int) $value,
-    };
+    if ($unit === 'g') {
+        return $number * 1024 * 1024 * 1024;
+    }
+    if ($unit === 'm') {
+        return $number * 1024 * 1024;
+    }
+    if ($unit === 'k') {
+        return $number * 1024;
+    }
+    return $number;
 }
 
-$checks[] = ['PHP 8.1 o superior', version_compare(PHP_VERSION, '8.1.0', '>='), 'Versión: ' . PHP_VERSION];
-foreach (['pdo_mysql', 'fileinfo', 'mbstring', 'json', 'session'] as $extension) {
-    $checks[] = ["Extensión {$extension}", extension_loaded($extension), extension_loaded($extension) ? 'instalada' : 'FALTA'];
+$checks[] = array('PHP 8.1 o superior', version_compare(PHP_VERSION, '8.1.0', '>='), 'Versión: ' . PHP_VERSION);
+foreach (array('pdo_mysql', 'fileinfo', 'mbstring', 'json', 'session') as $extension) {
+    $checks[] = array("Extensión {$extension}", extension_loaded($extension), extension_loaded($extension) ? 'instalada' : 'FALTA');
 }
 
-$minUpload = 9 * 1024 ** 2; // an 8 MB PDF plus the form fields
+$minUpload = 9 * 1024 * 1024; // an 8 MB PDF plus the form fields
 $upload = (string) ini_get('upload_max_filesize');
 $post = (string) ini_get('post_max_size');
-$checks[] = ['upload_max_filesize de 9 MB o más', bytes_from_ini($upload) >= $minUpload, 'Valor: ' . $upload];
-$checks[] = ['post_max_size de 9 MB o más', bytes_from_ini($post) >= $minUpload, 'Valor: ' . $post];
-$checks[] = ['file_uploads activado', (bool) ini_get('file_uploads'), ini_get('file_uploads') ? 'sí' : 'no'];
+$checks[] = array('upload_max_filesize de 9 MB o más', bytes_from_ini($upload) >= $minUpload, 'Valor: ' . $upload);
+$checks[] = array('post_max_size de 9 MB o más', bytes_from_ini($post) >= $minUpload, 'Valor: ' . $post);
+$checks[] = array('file_uploads activado', (bool) ini_get('file_uploads'), ini_get('file_uploads') ? 'sí' : 'no');
 
-$parent = dirname(__DIR__);
-$checks[] = [
+$parent = dirname(dirname(__FILE__));
+$checks[] = array(
     'Se puede escribir fuera de public_html (para comprobantes)',
     is_writable($parent),
-    $parent,
-];
+    $parent
+);
 
 if ($db['name'] !== '' && $db['user'] !== '') {
     try {
@@ -58,13 +66,13 @@ if ($db['name'] !== '' && $db['user'] !== '') {
             "mysql:host={$db['host']};dbname={$db['name']};charset=utf8mb4",
             $db['user'],
             $db['password'],
-            [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION],
+            array(PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION)
         );
         $version = (string) $pdo->query('SELECT VERSION()')->fetchColumn();
         $isMaria = stripos($version, 'mariadb') !== false;
-        $numeric = preg_replace('/[^0-9.].*$/', '', $version) ?? '0';
+        $numeric = (string) preg_replace('/[^0-9.].*$/', '', $version);
         $ok = $isMaria ? version_compare($numeric, '10.2.0', '>=') : version_compare($numeric, '5.7.8', '>=');
-        $checks[] = ['MySQL 5.7.8+ o MariaDB 10.2+', $ok, 'Versión: ' . $version];
+        $checks[] = array('MySQL 5.7.8+ o MariaDB 10.2+', $ok, 'Versión: ' . $version);
 
         // The one-active-reservation rule needs a unique index on a generated
         // column. Try it for real on a temporary table.
@@ -80,18 +88,23 @@ if ($db['name'] !== '' && $db['user'] !== '') {
         $blocked = false;
         try {
             $pdo->exec("INSERT INTO casa_check (status, person) VALUES ('active', 'a')");
-        } catch (PDOException) {
+        } catch (PDOException $duplicate) {
             $blocked = true;
         }
-        $checks[] = ['Columna generada con índice único (regla "una reserva activa")', $blocked, $blocked ? 'funciona' : 'NO bloquea duplicados'];
+        $checks[] = array('Columna generada con índice único (regla "una reserva activa")', $blocked, $blocked ? 'funciona' : 'NO bloquea duplicados');
         $engines = $pdo->query("SELECT SUPPORT FROM information_schema.ENGINES WHERE ENGINE = 'InnoDB'")->fetchColumn();
-        $checks[] = ['Motor InnoDB (transacciones y FOR UPDATE)', in_array($engines, ['YES', 'DEFAULT'], true), 'Soporte: ' . (string) $engines];
-    } catch (Throwable $error) {
-        $checks[] = ['Conexión a la base de datos', false, $error->getMessage()];
+        $checks[] = array('Motor InnoDB (transacciones y FOR UPDATE)', in_array($engines, array('YES', 'DEFAULT'), true), 'Soporte: ' . (string) $engines);
+    } catch (Exception $error) {
+        $checks[] = array('Conexión a la base de datos', false, $error->getMessage());
     }
 }
 
-$allOk = !in_array(false, array_column($checks, 1), true);
+$allOk = true;
+foreach ($checks as $check) {
+    if (!$check[1]) {
+        $allOk = false;
+    }
+}
 header('Content-Type: text/html; charset=utf-8');
 ?>
 <!doctype html>
@@ -103,7 +116,7 @@ table{border-collapse:collapse;width:100%}td{border-bottom:1px solid #ddd;paddin
 <h1>Chequeo de hosting — Casa de Antón</h1>
 <p class="<?= $allOk ? 'ok' : 'no' ?>"><?= $allOk ? 'Todo listo: el hosting cumple con lo necesario.' : 'Hay puntos que no se cumplen (en rojo). Pasale esta pantalla al equipo de desarrollo.' ?></p>
 <table>
-<?php foreach ($checks as [$label, $ok, $detail]): ?>
+<?php foreach ($checks as $check): list($label, $ok, $detail) = $check; ?>
 <tr><td><?= htmlspecialchars($label) ?></td><td class="<?= $ok ? 'ok' : 'no' ?>"><?= $ok ? 'OK' : 'NO' ?></td><td><?= htmlspecialchars($detail) ?></td></tr>
 <?php endforeach; ?>
 </table>
