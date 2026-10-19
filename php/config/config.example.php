@@ -20,8 +20,9 @@ return [
         'password' => 'CHANGE_ME',
     ],
 
-    // MercadoLibre alias shown on the payment step. Leave it empty to show a
-    // neutral text instead ("al alias que te pasamos por WhatsApp").
+    // Mercado Pago alias shown on the payment step. Leave it empty to show a
+    // neutral text instead ("El alias de pago te lo comparte la organización
+    // por WhatsApp.").
     'payment_alias' => '',
 
     'admin' => [

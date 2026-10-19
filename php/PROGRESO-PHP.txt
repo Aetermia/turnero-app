@@ -6,7 +6,7 @@
 Rama                 : feat/php-mysql (local, sin push hasta autorizacion)
 Referencia           : el proyecto Next.js de la raiz (src/). NO se toca.
 Especificacion       : PROGRESO.txt y odd/tasks/sistema-reservas.md.
-Ultima actualizacion : 18/10/2026
+Ultima actualizacion : 19/10/2026 (P1 a P13 terminadas)
 
 -------------------------------------------------------------------------------
 1. POR QUE ESTA MIGRACION
@@ -671,5 +671,104 @@ P12 - Clientes, exportar CSV y copiar mails
     mejora para la duena; se deja asi.
     CONTRAPRUEBAS: sin escapar el LIKE -> 2 FALLAN; CSV sin respetar el
     consentimiento -> 2 FALLAN.
+
+P13 - Revision lado a lado, guia de DonWeb y cierre
+-------------------------------------------------------------------------------
+  QUE SE HIZO
+    - REVISION DE TEXTOS: un script saco los 250 textos visibles del
+      original (src/) y busco cada uno en la version PHP. Los 57 que no
+      aparecen literalmente se revisaron uno por uno:
+        * esperables: textos de ejemplo (estan en seed.php), mensajes de
+          Supabase (URL firmadas, "preparar la subida") que no aplican, el
+          componente de terminos (main ya no lo usa), "Cargando proximos
+          eventos..." (en PHP la pagina llega completa);
+        * DIFERENCIAS REALES, CORREGIDAS:
+          - subir otro comprobante despues de confirmar ahora dice "Ya se
+            subio el comprobante para esta reserva", como el original;
+          - una fecha bien escrita pero inexistente (mes 13) dice "La fecha
+            no es valida"; un campo de capacidad o precio ausente dice
+            "Ingresa la capacidad" / "Ingresa el precio";
+        * MEJORA QUE SE MANTIENE: el original acepta "30 de febrero" (el
+          navegador lo pasa al 2 de marzo); PHP lo rechaza.
+    - Rutas: las 13 paginas del original existen con el mismo camino en PHP
+      (comprobado una por una: 200 las publicas, 307 al login las del panel),
+      asi que ningun enlace compartido se rompe.
+    - tests/verify-journey.php: el recorrido COMPLETO solo por HTTP, como lo
+      viven la clienta y la duena (ver abajo).
+    - tools/make-deploy-zip.php: arma dist/casa-donweb-AAAAMMDD.zip con la
+      estructura exacta del hosting (public_html/ + app/, config/, storage/
+      al lado). Nunca empaqueta config.php, comprobantes, sesiones, logs,
+      fotos subidas, pruebas ni node_modules.
+    - tests/verify-deploy-package.php: arma el zip, lo descomprime en una
+      carpeta "de hosting" falsa, escribe config/config.php alli y sirve
+      public_html como lo haria DonWeb.
+    - Arreglo en tools/dev-router.php (solo desarrollo): usaba siempre la
+      carpeta public/ del repo aunque se le indicara otra; ahora usa la
+      carpeta que se le pasa. Lo descubrio la prueba del paquete.
+    - DEPLOY-DONWEB.md: guia paso a paso en castellano (chequeo del hosting,
+      base de datos, subida, config.php, HTTPS, comprobaciones en el
+      servidor real, mantenimiento).
+    - tests/run-all.php: corre todas las verificaciones de una vez.
+    - Comentario de config.example.php corregido (decia MercadoLibre; es
+      Mercado Pago).
+
+  COMO SE VERIFICO
+    php tests/verify-journey.php -> PASS (26 passed, 0 failed):
+      la duena crea el evento desde el panel (2 lugares, $ 28.000); la
+      clienta lo ve en el catalogo, reserva, sube el comprobante y declara
+      la transferencia -> "en revision"; el mismo email otra vez (con otras
+      mayusculas) -> "Ya tenes una reserva"; Beto toma el ultimo lugar; Cami
+      -> agotado; la duena ve la reserva (sin salud en el listado, con salud
+      en el detalle), abre el comprobante, toca WhatsApp y aprueba -> la
+      clienta ve "confirmada" y la cuenta sigue 2 de 2; a Beto se le vence
+      el plazo -> Cami consigue el lugar; lista de clientes y CSV sin datos
+      de salud.
+    php tests/verify-deploy-package.php -> PASS (15 passed, 0 failed):
+      el zip no tiene nada privado; la copia descomprimida lee SU
+      config.php, muestra el catalogo con su CSS, reserva, guarda sesiones y
+      comprobantes en storage/ (fuera de public_html); /storage, /config,
+      /app y /database dan 404.
+    php tests/run-all.php -> TODO OK. Las 13 verificaciones:
+      verify-auth 31, verify-catalog 25, verify-clients 32,
+      verify-concurrency 43, verify-connection 18, verify-constraints 19,
+      verify-deploy-package 15, verify-events-admin 39, verify-journey 26,
+      verify-receipt 45, verify-reservations-admin 68, verify-status-page 32,
+      verify-whatsapp 30. TOTAL: 423 pruebas, 0 fallas.
+
+===============================================================================
+5. CIERRE: ESTADO DE LA MIGRACION
+===============================================================================
+
+  LAS 6 PRUEBAS PEDIDAS, TODAS CUMPLIDAS:
+    1. 1 lugar con 8 intentos simultaneos = 1 aceptado (verify-concurrency;
+       5 rondas; sin FOR UPDATE se colaban 6 a 8).
+    2. Mismo email dos veces en paralelo = 1 ok + 1 rechazado
+       (verify-concurrency).
+    3. Una retencion vencida no ocupa lugar y permite volver a reservar
+       (verify-status-page, en tiempo real y sin cron).
+    4. Rechazar libera el lugar y aprobar no cambia la cuenta
+       (verify-reservations-admin y verify-journey).
+    5. Un comprobante no se abre sin sesion de admin
+       (verify-reservations-admin, verify-receipt, verify-journey).
+    6. El CSV no contiene datos de salud (verify-clients, verify-journey).
+
+  REGLAS NO NEGOCIABLES:
+    R1 lugar bajo FOR UPDATE en transaccion InnoDB ............ hecho (P5)
+    Columna generada + indice unico, 'expired' en la transaccion hecho (P2/P5)
+    R2 comprobantes fuera de public_html, solo con sesion admin  hecho (P6/P9)
+    R3 vencimiento de 30 min con NOW(), sin cron ............... hecho (P5/P10)
+    R4/R5 compresion en navegador, PDF tal cual, "Reintentar" .. hecho (P6)
+    Seguridad: consultas preparadas, CSRF, password_hash, cookie
+      HttpOnly + Secure + SameSite, panel que falla cerrado ..... hecho (P1-P9)
+    Ley 25.326: salud nunca en paginas publicas, listados ni CSV hecho
+    Credenciales y alias en config.php fuera de public_html ... hecho
+
+  PENDIENTE (no se puede hacer sin el hosting o sin autorizacion):
+    - Correr check-hosting.php en DonWeb (DEPLOY-DONWEB.md, Paso 0). Si algo
+      sale en rojo, se frena y se avisa.
+    - En DonWeb: comprobar que uploads/events no ejecuta PHP (Paso 6.6).
+    - Tarea final, SOLO con aprobacion: borrar Next.js, mover php/ a la raiz
+      y volver a correr php tests/run-all.php.
+    - Push y merge a main, SOLO con autorizacion.
 
 ===============================================================================

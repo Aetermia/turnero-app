@@ -159,20 +159,27 @@ final class Validation
             $errors['location'] = 'El lugar es demasiado largo';
         }
 
+        // Well-formed but not a real date (month 13, February 30): "La fecha no
+        // es válida", like the original. Unlike JavaScript, which rolls
+        // February 30 over to March 2, it is rejected here.
+        $dateError = static fn (string $value, string $missing): string =>
+            preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/', $value) ? 'La fecha no es válida' : $missing;
         $startsAt = self::buenosAiresToUtc($str('startsAt'));
         if ($startsAt === false) {
-            $errors['startsAt'] = 'Completá la fecha y hora de inicio';
+            $errors['startsAt'] = $dateError($str('startsAt'), 'Completá la fecha y hora de inicio');
         }
         $endsAt = self::buenosAiresToUtc($str('endsAt'));
         if ($endsAt === false) {
-            $errors['endsAt'] = 'Completá la fecha y hora de fin';
+            $errors['endsAt'] = $dateError($str('endsAt'), 'Completá la fecha y hora de fin');
         }
         if ($startsAt !== false && $endsAt !== false && $endsAt <= $startsAt) {
             $errors['endsAt'] = 'El fin tiene que ser posterior al inicio';
         }
 
         $capacity = $str('capacity');
-        if (!preg_match('/^\d+$/', $capacity)) {
+        if (!isset($post['capacity']) || !is_string($post['capacity'])) {
+            $errors['capacity'] = 'Ingresá la capacidad';
+        } elseif (!preg_match('/^\d+$/', $capacity)) {
             $errors['capacity'] = 'Ingresá un número entero';
         } elseif ((int) $capacity <= 0) {
             $errors['capacity'] = 'La capacidad tiene que ser mayor a cero';
@@ -184,7 +191,9 @@ final class Validation
         // comma is what an Argentine keyboard types first. Zero is rejected
         // without parsing the money.
         $price = $str('price');
-        if (!preg_match('/^(?!0+([.,]0{1,2})?$)\d{1,8}([.,]\d{1,2})?$/', $price)) {
+        if (!isset($post['price']) || !is_string($post['price'])) {
+            $errors['price'] = 'Ingresá el precio';
+        } elseif (!preg_match('/^(?!0+([.,]0{1,2})?$)\d{1,8}([.,]\d{1,2})?$/', $price)) {
             // An empty field gets the same message as in the original (Zod's
             // regex runs on the empty string too).
             $errors['price'] = 'Ingresá un precio válido (por ejemplo 15000 o 15000,50)';

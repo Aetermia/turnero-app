@@ -161,7 +161,7 @@ check($row['transfer_holder'] === 'Ana Pérez' && $row['transfer_amount'] === '1
 check(str_contains($html, 'Tu reserva está en revisión') && str_contains($html, 'Datos enviados') && str_contains($html, 'OP-123'), 'the page now reads "Tu reserva está en revisión" with the data sent');
 check(!str_contains($html, 'DATO-DE-SALUD-SECRETO') && !str_contains($html, 'Subir comprobante'), 'no upload form anymore, and still no health data');
 [, , $body] = upload($base, $a['token'], $cookie, $csrf, $jpeg, 'foto.jpg', 'image/jpeg');
-check(str_contains($body, 'No es posible subir el comprobante en el estado actual'), 'a receipt can no longer be uploaded once in review');
+check(str_contains($body, 'Ya se subió el comprobante para esta reserva'), 'a receipt can no longer be uploaded once in review ("Ya se subió el comprobante...", as in the original)');
 
 $b = book($event, 'sincomprobante@example.com');
 [$bcookie, $bcsrf] = session_for($base, $b['token']);

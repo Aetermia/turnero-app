@@ -182,7 +182,10 @@ final class Reservations
             return ['ok' => false, 'error' => 'La reserva ya expiró. No es posible completar el pago'];
         }
         if ($reservation['effective_status'] !== 'pending_no_receipt') {
-            return ['ok' => false, 'error' => 'No es posible subir el comprobante en el estado actual'];
+            // Same wording as the original once the payment was confirmed.
+            return ['ok' => false, 'error' => $reservation['has_receipt']
+                ? 'Ya se subió el comprobante para esta reserva'
+                : 'No es posible subir el comprobante en el estado actual'];
         }
 
         [$path, $type] = Receipts::store($reservation['id'], $file);

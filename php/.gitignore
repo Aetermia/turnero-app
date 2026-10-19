@@ -16,3 +16,4 @@
 /public/uploads/events/*
 !/public/uploads/events/.gitkeep
 !/public/uploads/events/.htaccess
+/dist/
