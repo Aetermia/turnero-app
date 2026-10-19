@@ -3,11 +3,12 @@
   REGISTRO DE DESARROLLO
 ===============================================================================
 
-Ultima actualizacion : 18/10/2026
-Estado general       : Construccion CERRADA (T1 a T12 + fotos de evento + ajustes
-                       de diseno). Falta: decidir terminos y condiciones,
-                       configurar Supabase y el hosting, probar de punta a punta
-                       y publicar. Ver seccion 0 (estado actual).
+Ultima actualizacion : 19/10/2026
+Estado general       : MIGRADO A PHP + MySQL para el Plan Emprendedor de DonWeb
+                       (rama local feat/php-mysql, tareas P1 a P13 terminadas y
+                       verificadas). Falta: probar en DonWeb, aprobar el paso
+                       final (borrar Next.js y dejar php/ en la raiz) y subir.
+                       Ver seccion 0 (estado actual) y seccion 28.
 
 -------------------------------------------------------------------------------
 0. ESTADO ACTUAL - RESUMEN (leer primero)
@@ -19,8 +20,20 @@ QUE ES
   - Hoy todo se coordina 1 a 1 por WhatsApp. El sistema lo reemplaza por un
     circuito ordenado: el cliente elige el evento, reserva, transfiere y sube
     el comprobante; la duena valida desde un panel privado.
-  - Pago por transferencia al alias del local: sin comisiones de MercadoPago.
+  - Pago por transferencia al alias del local: sin comisiones de Mercado Pago.
     La verificacion del pago es manual (la hace la duena).
+
+CAMBIO IMPORTANTE (19/10/2026): NUEVA TECNOLOGIA
+  - El sistema se reescribio en PHP 8 + MySQL para que corra en el Plan
+    Emprendedor de DonWeb (hosting compartido, sin Node.js). Asi no hace
+    falta pagar Vercel, Render ni Supabase: todo vive en DonWeb.
+  - Se comporta IGUAL que la version Next.js para el cliente y para la
+    duena: mismas pantallas, mismos textos, mismas direcciones (URL).
+  - El codigo nuevo esta en la carpeta php/ de la rama feat/php-mysql
+    (solo en la compu, sin subir a GitHub todavia). La version Next.js sigue
+    intacta en src/ como referencia hasta que se apruebe el paso final.
+  - Detalle completo tarea por tarea: php/PROGRESO-PHP.txt.
+  - Como subirlo a DonWeb: php/DEPLOY-DONWEB.md.
 
 QUE HAY - PARTE PUBLICA (celular primero)
   - Catalogo de proximos eventos en una columna, con foto (o bloque de color
@@ -31,8 +44,8 @@ QUE HAY - PARTE PUBLICA (celular primero)
       1. Datos: nombre, email, telefono (WhatsApp), condicion de salud si/no
          con detalle obligatorio si es "si", novedades por email (opcional).
          Al enviar, el lugar queda retenido 30 minutos.
-      2. Pago: alias, datos de la transferencia y comprobante (foto o PDF),
-         con compresion en el celular y boton "Reintentar" si falla.
+      2. Pago: alias, comprobante (foto o PDF, con compresion en el celular
+         y boton "Reintentar" si falla) y datos de la transferencia.
   - Pagina de seguimiento con link personal: retenida, en revision,
     confirmada, rechazada (con motivo), vencida o cancelada.
   - Encabezado con logo, flores en linea azul y fijo al scrollear; pie con
@@ -44,75 +57,79 @@ QUE HAY - PANEL DE LA DUENA (/admin, usuario y contrasena)
   - Reservas: lista con filtros, detalle, ver comprobante, aprobar o
     rechazar (rechazar libera el lugar solo).
   - WhatsApp en un toque con mensaje preescrito segun el estado.
-  - Clientes: lista con busqueda, exportar a CSV (Excel) y copiar los mails.
+  - Clientes: lista con busqueda, exportar a CSV (Excel) y copiar los mails
+    (solo de quienes aceptaron recibir novedades).
   - Vuelta al panel desde cualquier pantalla.
 
-TECNOLOGIA E INFRAESTRUCTURA
-  - Next.js 16 + TypeScript + Tailwind v4 + Drizzle + PostgreSQL + Zod.
-  - Base de datos: Supabase (proyecto "turnero-app", Sao Paulo). En
-    desarrollo cada uno puede usar Postgres local o Supabase.
-  - Archivos: Supabase Storage. Bucket "receipts" PRIVADO (comprobantes) y
-    "event-images" PUBLICO (fotos de evento). TODAVIA NO CREADOS.
-  - Repo: github.com/Aetermia/turnero-app, rama de trabajo: main.
-  - Vercel: existe un proyecto "turnero-app" en la cuenta del equipo
-    conectado al repo. El ultimo estado visible (13/10) fue un deploy
-    FALLIDO; no se confirmo que version esta publicada.
+TECNOLOGIA E INFRAESTRUCTURA (version nueva)
+  - PHP 8 puro (sin framework) + PDO + MySQL/MariaDB. Tailwind v4 compilado
+    de antemano: el servidor no necesita Node.
+  - Hosting: DonWeb Plan Emprendedor. Base de datos MySQL del mismo plan.
+  - Comprobantes: carpeta storage/receipts, FUERA de public_html; solo se
+    abren con la sesion de la duena.
+  - Fotos de evento: public_html/uploads/events (publicas, sin ejecucion de
+    codigo).
+  - Configuracion (base, alias, contrasena del panel): config/config.php,
+    fuera de public_html y fuera del repo.
+  - Vencimiento de 30 minutos: lo calcula la base en cada visita, sin cron.
+  - En desarrollo: MariaDB local (base "casa"; las pruebas usan "casa_test").
+  - Repo: github.com/Aetermia/turnero-app, rama de trabajo: main. La
+    migracion esta en la rama local feat/php-mysql.
+  - Ya NO se usan: Supabase, Vercel, Drizzle ni las variables de entorno de
+    la version Next.js.
 
 CUMPLIMIENTO DE LAS CONDICIONES INICIALES (Discovery, seccion 3 y 4)
   [OK]  Pago por transferencia, comprobante foto o PDF, datos declarados de
         la transferencia, verificacion manual.
   [OK]  1 reserva = 1 persona = 1 lugar; una reserva activa por persona y
-        evento (lo impone la base).
+        evento (lo impone la base con un indice unico).
   [OK]  Cupo retenido al enviar el formulario; sin comprobante vence a los
         30 min; con comprobante no vence.
   [OK]  Precio obligatorio y se paga el total.
   [OK]  Datos personales obligatorios; salud si/no con detalle obligatorio.
   [OK]  Novedades por email opcional y separado.
-  [NO]  Terminos y condiciones OBLIGATORIOS. Se quitaron del formulario en el
-        commit f31609d ("Cambios de form", 15/10). Ademas el sistema sigue
-        guardando terms_accepted_at = now() en cada reserva: queda registrado
-        un consentimiento que la persona nunca dio. Ver PENDIENTE 1.
-  [!!]  Ley 25.326 (datos de salud): no se muestran en paginas publicas, en
-        listados ni en el CSV [OK]; pero el consentimiento explicito dependia
-        del checkbox de terminos [NO].
-  [OK]  Sin emails automaticos; WhatsApp por link (deep link); seguimiento
-        por link con token.
+  [--]  Terminos y condiciones: se decidio NO tenerlos (igual que main desde
+        el commit f31609d). La version PHP ya NO guarda una aceptacion que la
+        persona no dio (terms_accepted_at queda vacio). Si mas adelante se
+        quieren, hay que volver a agregar el checkbox.
+  [OK]  Ley 25.326 (datos de salud): no se muestran en paginas publicas, en
+        listados ni en el CSV (probado).
+  [OK]  Sin emails automaticos; WhatsApp por link; seguimiento por link con
+        token.
   [OK]  Panel de un solo usuario con contrasena y cookie de sesion.
-  [OK]  R1 cupos con transaccion y lock (probado con intentos simultaneos).
-  [!!]  R2 comprobantes privados con URL firmada: hecho en el codigo, NUNCA
-        probado contra un Supabase real.
-  [OK]  R3 vencimiento calculado en la consulta, sin cron.
-  [OK]  R4 compresion de imagen y reintento visible.
+  [OK]  R1 cupos con transaccion y bloqueo de fila (1 lugar, 8 intentos
+        simultaneos = 1 aceptado).
+  [OK]  R2 comprobantes privados: fuera de public_html y solo con sesion de
+        la duena (probado; antes nunca se habia probado con Supabase real).
+  [OK]  R3 vencimiento calculado en la consulta, sin cron (probado en tiempo
+        real).
+  [OK]  R4 compresion de imagen y reintento visible (probado en Chromium).
   [OK]  R5 mobile-first.
-  [OK]  Extra no pedido en Discovery: foto por evento (era P9).
+  [OK]  Extra no pedido en Discovery: foto por evento.
+
+VERIFICACIONES DE LA VERSION PHP
+  13 scripts de prueba contra una base real, 423 pruebas, 0 fallas
+  (php php/tests/run-all.php). Incluyen las 6 pruebas pedidas: concurrencia
+  de cupos, mismo email en paralelo, retencion vencida, aprobar/rechazar,
+  comprobante sin sesion y CSV sin datos de salud; y un recorrido completo
+  de la clienta y la duena.
 
 PENDIENTES PARA PUBLICAR (en orden)
-  1. TERMINOS Y CONDICIONES: decidir con la duena. Volver a poner el checkbox
-     obligatorio (el texto ya existe en src/components/reservation-terms.tsx,
-     hoy sin uso) o, si se decide no tenerlo, dejar de guardar
-     terms_accepted_at como aceptado. Falta tambien la politica de
-     cancelacion (hoy: "escribinos y lo vemos juntos").
-  2. SUPABASE: crear los buckets "receipts" (privado) y "event-images"
-     (publico) y probar desde un celular: reservar, subir comprobante (foto y
-     PDF), verlo en el panel, aprobar/rechazar; subir/cambiar/borrar la foto
-     de un evento.
-  3. HOSTING: el plan compartido de DonWeb NO corre Node.js. Opciones:
-       - Vercel: el plan gratis es para uso NO comercial (sirve para mostrar el
-         prototipo); para el lanzamiento corresponde Pro (~USD 20/mes).
-       - Render o Railway (~USD 5-7/mes): corren la app igual que en local.
-         Es la recomendacion.
-     Confirmar precios antes de cotizar.
-  4. VARIABLES DE ENTORNO en el hosting: DATABASE_URL, SUPABASE_URL,
-     SUPABASE_SERVICE_ROLE_KEY, PAYMENT_ALIAS, ADMIN_USER,
-     ADMIN_PASSWORD_HASH (en el panel del hosting va SIN las barras "\"),
-     SESSION_SECRET.
-  5. DATOS DE LA DUENA: alias real de MercadoLibre (P8), confirmar el
-     WhatsApp del pie (2494 31-4915), dominio (.com o .com.ar a su nombre).
-  6. FOTOS DE PRODUCCION: las fotos de ejemplo estan solo en la base local;
-     en produccion hay que subirlas desde el panel.
+  1. PROBAR EL HOSTING: subir php/tools/check-hosting.php a DonWeb y ver que
+     todo salga en verde (PHP 8.1+, MySQL, limite de subida de 9 MB). Si algo
+     sale en rojo, frenar y avisar. Paso 0 de php/DEPLOY-DONWEB.md.
+  2. APROBAR EL PASO FINAL: borrar la version Next.js, dejar php/ en la raiz
+     y volver a correr todas las pruebas. Solo con aprobacion.
+  3. SUBIR A GITHUB Y A main: solo con autorizacion.
+  4. INSTALAR EN DONWEB siguiendo php/DEPLOY-DONWEB.md (base de datos,
+     archivos, config.php, HTTPS) y hacer las comprobaciones del Paso 6.
+  5. DATOS DE LA DUENA: alias real de Mercado Pago, confirmar el WhatsApp
+     del pie (2494 31-4915), dominio (.com o .com.ar a su nombre), usuario y
+     contrasena del panel.
+  6. FOTOS DE PRODUCCION: se suben desde el panel una vez online.
   7. GITHUB: cambiar la rama por defecto a main (hoy es
-     feat/reservations-and-admin) y borrar la vieja. En Vercel, rama de
-     produccion = main.
+     feat/reservations-and-admin) y borrar las ramas viejas.
+  8. Politica de cancelacion (hoy: "escribinos y lo vemos juntos").
 
 MEJORAS SUGERIDAS (no bloquean)
   - Icono de la pestana con el logo y vista previa al compartir por WhatsApp.
@@ -120,15 +137,13 @@ MEJORAS SUGERIDAS (no bloquean)
   - Aviso de "ultimos lugares" y duracion del evento.
   - Panel: resumen al entrar, lista de asistentes por evento, duplicar
     evento, cargar la foto ya en el alta.
-  - P3: aviso automatico de rechazo (hoy es el boton de WhatsApp).
-  - Unificar la compresion de imagen (hoy duplicada en comprobante y foto).
-  - Error de lint preexistente: Date.now() en src/app/eventos/[id]/reservar/
-    page.tsx.
+  - Aviso automatico de rechazo (hoy es el boton de WhatsApp).
 
 COMERCIAL
   - Cotizacion COT-2026-043 (15/10): desarrollo $320.000 (50% anticipo),
     20 a 25 dias habiles, prototipo navegable al dia 10. La linea de hosting
-    DonWeb debe revisarse por lo del punto 3.
+    DonWeb queda bien: la version PHP corre en ese plan (falta confirmarlo
+    con el chequeo del punto 1).
 
 -------------------------------------------------------------------------------
 1. QUE ES ESTE ARCHIVO
@@ -1867,5 +1882,52 @@ COMO SE VERIFICO
   npx tsc --noEmit exit 0, npm run build exit 0, eslint sin errores nuevos,
   scripts/verify-whatsapp.mjs PASS, y capturas de compu y celular contra un
   Postgres de prueba antes de cada subida.
+
+===============================================================================
+28. MIGRACION A PHP + MySQL PARA DONWEB (octubre 2026)
+===============================================================================
+
+POR QUE
+  - DonWeb Plan Emprendedor es hosting compartido para WordPress: corre PHP y
+    MySQL, no Node.js. La version Next.js no se podia alojar ahi sin pagar
+    otro servicio. Se eligio lo mas economico, simple y funcional: PHP 8 puro
+    con PDO, sin framework.
+
+COMO SE TRABAJO
+  - Rama nueva feat/php-mysql (local). Todo el codigo nuevo en php/; la
+    version Next.js no se toco y sirvio de referencia de comportamiento.
+  - Una tarea por vez, un commit por tarea, cada una con pruebas reales
+    contra una base MariaDB y, cuando hizo falta, en un navegador real.
+  - Cada regla importante tiene una "contraprueba": se rompio el codigo a
+    proposito y se comprobo que la prueba falla.
+
+TAREAS (detalle en php/PROGRESO-PHP.txt)
+  P1  Estructura base, configuracion, estilos y chequeo del hosting.
+  P2  Base de datos MySQL y la regla "una reserva activa por persona".
+  P3  Conexion a la base, formatos en castellano y eventos de ejemplo.
+  P4  Catalogo y detalle de eventos.
+  P5  Formulario de reserva con el lugar bloqueado durante la transaccion.
+  P6  Comprobante: compresion, PDF tal cual, "Reintentar", archivo privado.
+  P7  Login del panel (falla cerrado si no esta configurado).
+  P8  Eventos desde el panel, con foto y control de capacidad.
+  P9  Reservas desde el panel: aprobar, rechazar, ver comprobante.
+  P10 Vencimiento de 30 minutos y pagina de seguimiento.
+  P11 WhatsApp en un toque (identico byte a byte al original).
+  P12 Clientes, CSV y copiar mails.
+  P13 Revision lado a lado con el original, paquete y guia para DonWeb.
+
+DIFERENCIAS CON LA VERSION NEXT.JS (todas a favor o neutras)
+  - No se guarda una aceptacion de terminos que no existe en el formulario.
+  - Una fecha inexistente (30 de febrero) se rechaza; el original la pasaba
+    al 2 de marzo.
+  - La busqueda de clientes tambien ignora acentos.
+  - Los comprobantes no usan URL firmadas: no existe ninguna URL publica
+    del archivo, solo la del panel con sesion.
+
+RESULTADO
+  - 13 scripts de prueba, 423 pruebas, 0 fallas.
+  - Commits en feat/php-mysql: 774560f ... f8f2ea5 (uno por tarea).
+    Sin push ni merge: esperan autorizacion.
+  - Pendientes: ver seccion 0, "PENDIENTES PARA PUBLICAR".
 
 ===============================================================================
