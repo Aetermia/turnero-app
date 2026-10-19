@@ -34,5 +34,7 @@ $router->get('/admin/reservas/{id}', AdminReservationsController::show(...));
 $router->post('/admin/reservas/{id}/aprobar', AdminReservationsController::approve(...));
 $router->post('/admin/reservas/{id}/rechazar', AdminReservationsController::reject(...));
 $router->get('/admin/reservas/{id}/comprobante', AdminReservationsController::receipt(...));
+$router->get('/admin/clientes', AdminClientsController::index(...));
+$router->get('/admin/clientes/export', AdminClientsController::export(...));
 
 return $router;

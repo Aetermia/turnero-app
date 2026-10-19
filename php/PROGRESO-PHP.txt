@@ -618,4 +618,58 @@ P11 - WhatsApp en un toque
     CONTRAPRUEBAS: codificar con urlencode (espacios como "+") -> 4 FALLAN;
     no quitar el 15 -> 3 FALLAN.
 
+P12 - Clientes, exportar CSV y copiar mails
+-------------------------------------------------------------------------------
+  QUE SE HIZO
+    - app/domain/Clients.php (port de src/lib/clients.ts): una fila por
+      cliente con al menos una reserva, ordenadas por la reserva mas
+      reciente; reservas totales y activas ("activas" con la misma regla de
+      cupos del sistema, por estado efectivo: una retencion vencida deja de
+      contar sin cron); busqueda por nombre, email o WhatsApp.
+    - Lo que se tipea en el buscador se busca LITERAL: un % o un _ no actuan
+      de comodin (con un % solo no se lista a todos). Se usa "!" como
+      caracter de escape porque funciona igual con cualquier configuracion
+      de MySQL.
+    - CSV igual al original: UTF-8 con BOM (Excel abre bien los acentos),
+      filas CRLF, todos los campos entre comillas, comillas internas
+      duplicadas, 6 columnas (Nombre, Email, WhatsApp, Reservas totales,
+      Reservas activas, Ultima reserva), fecha en hora de Buenos Aires,
+      archivo clientes-AAAA-MM-DD.csv. Exporta exactamente la busqueda que
+      esta en pantalla. La sesion de admin se exige ANTES de leer un dato.
+    - Ley 25.326: ni la pagina ni el CSV tienen datos de salud.
+    - Consentimiento de marketing (como en main despues de la ultima
+      revision): sin el tilde "Quiero recibir novedades", el email se
+      muestra como "sin consentimiento" en la pagina y en el CSV, y el boton
+      "Copiar mails" no lo incluye.
+    - Boton "Copiar mails": copia los mails de la lista en pantalla,
+      separados por coma, listos para pegar en el correo. Muestra "Mails
+      copiados" o "No se pudo copiar" y queda deshabilitado si no hay mails.
+    - Pequena mejora de celular: la fila de botones hace salto de linea
+      (flex-wrap) para que los 4 botones no se salgan de la pantalla.
+
+  COMO SE VERIFICO (php tests/verify-clients.php)
+    RESULT: PASS (32 passed, 0 failed). Lo que importa:
+      - totales y activas iguales a un ORACULO SQL independiente (reescribe
+        la regla con status + expires_at); Alpha 3 reservas / 2 activas (la
+        retencion vencida no cuenta), Beta 1 activa, Gamma 0; un cliente sin
+        reservas no aparece; orden por actividad reciente;
+      - busqueda por nombre (sin importar mayusculas), email y WhatsApp;
+        "%", "_", "a%a", "!" no encuentran nada;
+      - CSV armado a mano comparado BYTE A BYTE con lo esperado (BOM, CRLF,
+        comillas, "Doe, ""Jr""" con salto de linea, fecha 18:30 de Buenos
+        Aires, "sin consentimiento"); un lector de CSV estandar lo relee
+        igual;
+      - HTTP: sin sesion la pagina y la exportacion -> 307 sin datos; EL CSV
+        NO CONTIENE DATOS DE SALUD (ni columna de salud o consentimiento);
+        el email de Beta (sin consentimiento) no aparece ni en la pagina ni
+        en el CSV ni en el boton; la exportacion respeta la busqueda;
+      - CHROMIUM REAL: clic en "Copiar mails" -> el portapapeles queda con
+        "alpha@example.com, gamma@example.com", el boton dice "Mails
+        copiados" y no envia el formulario de busqueda.
+    DIFERENCIA MENOR CON NEXT: la busqueda tambien ignora acentos ("garcia"
+    encuentra "Garcia" con tilde), por la configuracion de MySQL. Es una
+    mejora para la duena; se deja asi.
+    CONTRAPRUEBAS: sin escapar el LIKE -> 2 FALLAN; CSV sin respetar el
+    consentimiento -> 2 FALLAN.
+
 ===============================================================================

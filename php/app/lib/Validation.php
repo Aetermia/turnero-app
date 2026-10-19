@@ -261,4 +261,20 @@ final class Validation
         }
         return ['errors' => [], 'value' => $reason === '' ? null : $reason];
     }
+
+    /**
+     * Client search from the URL: trimmed, at most 100 characters. Anything
+     * else (too long, an array) is ignored, never an error; "" means no filter.
+     *
+     * @param array<string, mixed> $query
+     */
+    public static function clientSearch(array $query): ?string
+    {
+        $raw = $query['search'] ?? null;
+        if (!is_string($raw)) {
+            return null;
+        }
+        $search = (string) preg_replace('/^\s+|\s+$/u', '', $raw);
+        return $search === '' || mb_strlen($search) > 100 ? null : $search;
+    }
 }
