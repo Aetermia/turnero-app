@@ -511,7 +511,6 @@ P9 - Gestion de reservas en el panel (aprobar, rechazar, comprobante)
       declarados, salud, comprobante (imagen embebida o boton para el PDF)
       y Resolucion. Los avisos "ya no esta pendiente de revision" son los
       del original.
-    - La seccion "Contactar por WhatsApp" del detalle va en P11.
 
   COMO SE VERIFICO (php tests/verify-reservations-admin.php)
     RESULT: PASS (68 passed, 0 failed). Lo que importa:
@@ -582,5 +581,41 @@ P10 - Vencimiento de 30 minutos y pagina de seguimiento (R3)
       - cuenta de cupos sin "expires_at > NOW()": 2 tests FALLAN (la
         retencion vencida sigue ocupando el lugar);
       - estado efectivo sin el CASE de vencimiento: 3 tests FALLAN.
+
+P11 - WhatsApp en un toque
+-------------------------------------------------------------------------------
+  QUE SE HIZO
+    - app/lib/WhatsApp.php: port de src/lib/whatsapp.ts. Normaliza el numero
+      (saca todo lo que no es digito, el 00 internacional, el 0 de larga
+      distancia y el 15 viejo, y agrega el 54), arma el enlace wa.me con el
+      mensaje codificado igual que encodeURIComponent de JavaScript, y arma
+      el mensaje segun el estado EFECTIVO de la reserva, con los mismos
+      textos que el original (tuteo, sin emojis, solo el primer nombre).
+    - Detalle de la reserva en el panel: seccion "Contactar por WhatsApp"
+      con el boton (abre en pestana nueva) y la aclaracion de que el envio
+      es manual. Si el numero no sirve, en lugar del boton aparece la nota
+      original para corregirlo. El alias sale de config.php.
+    - Nada se manda solo: el boton solo abre WhatsApp con el texto listo
+      para revisar.
+
+  COMO SE VERIFICO (php tests/verify-whatsapp.php)
+    RESULT: PASS (30 passed, 0 failed). Lo que importa:
+      - COMPARACION DORADA: tests/fixtures/whatsapp-golden.json se genero
+        corriendo el whatsapp.ts REAL de la version Next (Node 22) sobre 18
+        numeros, 4 mensajes (con emoji, & ? # % ' ( ) * ~ !, salto de linea)
+        y 21 entradas de reserva (6 estados + uno desconocido, con y sin
+        plazo, alias y motivo). Las 111 salidas de PHP son IDENTICAS byte a
+        byte. El archivo queda en el repo, asi la prueba sigue sirviendo
+        despues de borrar Next.js;
+      - la tabla de verify-whatsapp.mjs del original, completa;
+      - en el panel: sin sesion no se llega; reserva retenida -> mensaje
+        "Te guardamos el lugar" con el alias configurado y el "&" del titulo
+        intacto; retencion vencida -> mensaje de plazo vencido (estado
+        efectivo); numero inservible -> sin boton y con la nota.
+    HALLAZGO (no es un error del port): "0249 15 431-4915" no se normaliza
+    (queda de 14 digitos y no se ofrece boton). Es el mismo comportamiento
+    del original, que se documenta como "mejor esfuerzo"; se mantuvo igual.
+    CONTRAPRUEBAS: codificar con urlencode (espacios como "+") -> 4 FALLAN;
+    no quitar el 15 -> 3 FALLAN.
 
 ===============================================================================

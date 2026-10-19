@@ -1,0 +1,713 @@
+{
+ "normalize": [
+  [
+   "11 5555-6666",
+   "541155556666"
+  ],
+  [
+   "011-5555-6666",
+   "541155556666"
+  ],
+  [
+   "+54 9 11 5555 6666",
+   "5491155556666"
+  ],
+  [
+   "5491155556666",
+   "5491155556666"
+  ],
+  [
+   "15 5555 6666",
+   "5455556666"
+  ],
+  [
+   "0054 9 11 5555-6666",
+   "5491155556666"
+  ],
+  [
+   "+54 (11) 5555-6666 con letras y espacios",
+   "541155556666"
+  ],
+  [
+   "2494 31-4915",
+   "542494314915"
+  ],
+  [
+   "0249 15 431-4915",
+   "54249154314915"
+  ],
+  [
+   "+5492494314915",
+   "5492494314915"
+  ],
+  [
+   "2494000000",
+   "542494000000"
+  ],
+  [
+   "555666",
+   "54555666"
+  ],
+  [
+   "54911555566",
+   "54911555566"
+  ],
+  [
+   "54911555566666",
+   "54911555566666"
+  ],
+  [
+   "abc",
+   "54"
+  ],
+  [
+   "",
+   "54"
+  ],
+  [
+   "   ",
+   "54"
+  ],
+  [
+   "(0249) 4-31.49.15",
+   "542494314915"
+  ]
+ ],
+ "links": [
+  [
+   "11 5555-6666",
+   "Hola",
+   "https://wa.me/541155556666?text=Hola"
+  ],
+  [
+   "11 5555-6666",
+   "¡Hola María! Tu reserva está CONFIRMADA. ¡Gracias!",
+   "https://wa.me/541155556666?text=%C2%A1Hola%20Mar%C3%ADa!%20Tu%20reserva%20est%C3%A1%20CONFIRMADA.%20%C2%A1Gracias!"
+  ],
+  [
+   "11 5555-6666",
+   "a&b=c?d#e/f+g h%20 ñ 'x' (y) *z* ~w! \n línea 2",
+   "https://wa.me/541155556666?text=a%26b%3Dc%3Fd%23e%2Ff%2Bg%20h%2520%20%C3%B1%20'x'%20(y)%20*z*%20~w!%20%0A%20l%C3%ADnea%202"
+  ],
+  [
+   "11 5555-6666",
+   "emoji 🌸 y comillas \"dobles\"",
+   "https://wa.me/541155556666?text=emoji%20%F0%9F%8C%B8%20y%20comillas%20%22dobles%22"
+  ],
+  [
+   "011-5555-6666",
+   "Hola",
+   "https://wa.me/541155556666?text=Hola"
+  ],
+  [
+   "011-5555-6666",
+   "¡Hola María! Tu reserva está CONFIRMADA. ¡Gracias!",
+   "https://wa.me/541155556666?text=%C2%A1Hola%20Mar%C3%ADa!%20Tu%20reserva%20est%C3%A1%20CONFIRMADA.%20%C2%A1Gracias!"
+  ],
+  [
+   "011-5555-6666",
+   "a&b=c?d#e/f+g h%20 ñ 'x' (y) *z* ~w! \n línea 2",
+   "https://wa.me/541155556666?text=a%26b%3Dc%3Fd%23e%2Ff%2Bg%20h%2520%20%C3%B1%20'x'%20(y)%20*z*%20~w!%20%0A%20l%C3%ADnea%202"
+  ],
+  [
+   "011-5555-6666",
+   "emoji 🌸 y comillas \"dobles\"",
+   "https://wa.me/541155556666?text=emoji%20%F0%9F%8C%B8%20y%20comillas%20%22dobles%22"
+  ],
+  [
+   "+54 9 11 5555 6666",
+   "Hola",
+   "https://wa.me/5491155556666?text=Hola"
+  ],
+  [
+   "+54 9 11 5555 6666",
+   "¡Hola María! Tu reserva está CONFIRMADA. ¡Gracias!",
+   "https://wa.me/5491155556666?text=%C2%A1Hola%20Mar%C3%ADa!%20Tu%20reserva%20est%C3%A1%20CONFIRMADA.%20%C2%A1Gracias!"
+  ],
+  [
+   "+54 9 11 5555 6666",
+   "a&b=c?d#e/f+g h%20 ñ 'x' (y) *z* ~w! \n línea 2",
+   "https://wa.me/5491155556666?text=a%26b%3Dc%3Fd%23e%2Ff%2Bg%20h%2520%20%C3%B1%20'x'%20(y)%20*z*%20~w!%20%0A%20l%C3%ADnea%202"
+  ],
+  [
+   "+54 9 11 5555 6666",
+   "emoji 🌸 y comillas \"dobles\"",
+   "https://wa.me/5491155556666?text=emoji%20%F0%9F%8C%B8%20y%20comillas%20%22dobles%22"
+  ],
+  [
+   "5491155556666",
+   "Hola",
+   "https://wa.me/5491155556666?text=Hola"
+  ],
+  [
+   "5491155556666",
+   "¡Hola María! Tu reserva está CONFIRMADA. ¡Gracias!",
+   "https://wa.me/5491155556666?text=%C2%A1Hola%20Mar%C3%ADa!%20Tu%20reserva%20est%C3%A1%20CONFIRMADA.%20%C2%A1Gracias!"
+  ],
+  [
+   "5491155556666",
+   "a&b=c?d#e/f+g h%20 ñ 'x' (y) *z* ~w! \n línea 2",
+   "https://wa.me/5491155556666?text=a%26b%3Dc%3Fd%23e%2Ff%2Bg%20h%2520%20%C3%B1%20'x'%20(y)%20*z*%20~w!%20%0A%20l%C3%ADnea%202"
+  ],
+  [
+   "5491155556666",
+   "emoji 🌸 y comillas \"dobles\"",
+   "https://wa.me/5491155556666?text=emoji%20%F0%9F%8C%B8%20y%20comillas%20%22dobles%22"
+  ],
+  [
+   "15 5555 6666",
+   "Hola",
+   null
+  ],
+  [
+   "15 5555 6666",
+   "¡Hola María! Tu reserva está CONFIRMADA. ¡Gracias!",
+   null
+  ],
+  [
+   "15 5555 6666",
+   "a&b=c?d#e/f+g h%20 ñ 'x' (y) *z* ~w! \n línea 2",
+   null
+  ],
+  [
+   "15 5555 6666",
+   "emoji 🌸 y comillas \"dobles\"",
+   null
+  ],
+  [
+   "0054 9 11 5555-6666",
+   "Hola",
+   "https://wa.me/5491155556666?text=Hola"
+  ],
+  [
+   "0054 9 11 5555-6666",
+   "¡Hola María! Tu reserva está CONFIRMADA. ¡Gracias!",
+   "https://wa.me/5491155556666?text=%C2%A1Hola%20Mar%C3%ADa!%20Tu%20reserva%20est%C3%A1%20CONFIRMADA.%20%C2%A1Gracias!"
+  ],
+  [
+   "0054 9 11 5555-6666",
+   "a&b=c?d#e/f+g h%20 ñ 'x' (y) *z* ~w! \n línea 2",
+   "https://wa.me/5491155556666?text=a%26b%3Dc%3Fd%23e%2Ff%2Bg%20h%2520%20%C3%B1%20'x'%20(y)%20*z*%20~w!%20%0A%20l%C3%ADnea%202"
+  ],
+  [
+   "0054 9 11 5555-6666",
+   "emoji 🌸 y comillas \"dobles\"",
+   "https://wa.me/5491155556666?text=emoji%20%F0%9F%8C%B8%20y%20comillas%20%22dobles%22"
+  ],
+  [
+   "+54 (11) 5555-6666 con letras y espacios",
+   "Hola",
+   "https://wa.me/541155556666?text=Hola"
+  ],
+  [
+   "+54 (11) 5555-6666 con letras y espacios",
+   "¡Hola María! Tu reserva está CONFIRMADA. ¡Gracias!",
+   "https://wa.me/541155556666?text=%C2%A1Hola%20Mar%C3%ADa!%20Tu%20reserva%20est%C3%A1%20CONFIRMADA.%20%C2%A1Gracias!"
+  ],
+  [
+   "+54 (11) 5555-6666 con letras y espacios",
+   "a&b=c?d#e/f+g h%20 ñ 'x' (y) *z* ~w! \n línea 2",
+   "https://wa.me/541155556666?text=a%26b%3Dc%3Fd%23e%2Ff%2Bg%20h%2520%20%C3%B1%20'x'%20(y)%20*z*%20~w!%20%0A%20l%C3%ADnea%202"
+  ],
+  [
+   "+54 (11) 5555-6666 con letras y espacios",
+   "emoji 🌸 y comillas \"dobles\"",
+   "https://wa.me/541155556666?text=emoji%20%F0%9F%8C%B8%20y%20comillas%20%22dobles%22"
+  ],
+  [
+   "2494 31-4915",
+   "Hola",
+   "https://wa.me/542494314915?text=Hola"
+  ],
+  [
+   "2494 31-4915",
+   "¡Hola María! Tu reserva está CONFIRMADA. ¡Gracias!",
+   "https://wa.me/542494314915?text=%C2%A1Hola%20Mar%C3%ADa!%20Tu%20reserva%20est%C3%A1%20CONFIRMADA.%20%C2%A1Gracias!"
+  ],
+  [
+   "2494 31-4915",
+   "a&b=c?d#e/f+g h%20 ñ 'x' (y) *z* ~w! \n línea 2",
+   "https://wa.me/542494314915?text=a%26b%3Dc%3Fd%23e%2Ff%2Bg%20h%2520%20%C3%B1%20'x'%20(y)%20*z*%20~w!%20%0A%20l%C3%ADnea%202"
+  ],
+  [
+   "2494 31-4915",
+   "emoji 🌸 y comillas \"dobles\"",
+   "https://wa.me/542494314915?text=emoji%20%F0%9F%8C%B8%20y%20comillas%20%22dobles%22"
+  ],
+  [
+   "0249 15 431-4915",
+   "Hola",
+   null
+  ],
+  [
+   "0249 15 431-4915",
+   "¡Hola María! Tu reserva está CONFIRMADA. ¡Gracias!",
+   null
+  ],
+  [
+   "0249 15 431-4915",
+   "a&b=c?d#e/f+g h%20 ñ 'x' (y) *z* ~w! \n línea 2",
+   null
+  ],
+  [
+   "0249 15 431-4915",
+   "emoji 🌸 y comillas \"dobles\"",
+   null
+  ],
+  [
+   "+5492494314915",
+   "Hola",
+   "https://wa.me/5492494314915?text=Hola"
+  ],
+  [
+   "+5492494314915",
+   "¡Hola María! Tu reserva está CONFIRMADA. ¡Gracias!",
+   "https://wa.me/5492494314915?text=%C2%A1Hola%20Mar%C3%ADa!%20Tu%20reserva%20est%C3%A1%20CONFIRMADA.%20%C2%A1Gracias!"
+  ],
+  [
+   "+5492494314915",
+   "a&b=c?d#e/f+g h%20 ñ 'x' (y) *z* ~w! \n línea 2",
+   "https://wa.me/5492494314915?text=a%26b%3Dc%3Fd%23e%2Ff%2Bg%20h%2520%20%C3%B1%20'x'%20(y)%20*z*%20~w!%20%0A%20l%C3%ADnea%202"
+  ],
+  [
+   "+5492494314915",
+   "emoji 🌸 y comillas \"dobles\"",
+   "https://wa.me/5492494314915?text=emoji%20%F0%9F%8C%B8%20y%20comillas%20%22dobles%22"
+  ],
+  [
+   "2494000000",
+   "Hola",
+   "https://wa.me/542494000000?text=Hola"
+  ],
+  [
+   "2494000000",
+   "¡Hola María! Tu reserva está CONFIRMADA. ¡Gracias!",
+   "https://wa.me/542494000000?text=%C2%A1Hola%20Mar%C3%ADa!%20Tu%20reserva%20est%C3%A1%20CONFIRMADA.%20%C2%A1Gracias!"
+  ],
+  [
+   "2494000000",
+   "a&b=c?d#e/f+g h%20 ñ 'x' (y) *z* ~w! \n línea 2",
+   "https://wa.me/542494000000?text=a%26b%3Dc%3Fd%23e%2Ff%2Bg%20h%2520%20%C3%B1%20'x'%20(y)%20*z*%20~w!%20%0A%20l%C3%ADnea%202"
+  ],
+  [
+   "2494000000",
+   "emoji 🌸 y comillas \"dobles\"",
+   "https://wa.me/542494000000?text=emoji%20%F0%9F%8C%B8%20y%20comillas%20%22dobles%22"
+  ],
+  [
+   "555666",
+   "Hola",
+   null
+  ],
+  [
+   "555666",
+   "¡Hola María! Tu reserva está CONFIRMADA. ¡Gracias!",
+   null
+  ],
+  [
+   "555666",
+   "a&b=c?d#e/f+g h%20 ñ 'x' (y) *z* ~w! \n línea 2",
+   null
+  ],
+  [
+   "555666",
+   "emoji 🌸 y comillas \"dobles\"",
+   null
+  ],
+  [
+   "54911555566",
+   "Hola",
+   null
+  ],
+  [
+   "54911555566",
+   "¡Hola María! Tu reserva está CONFIRMADA. ¡Gracias!",
+   null
+  ],
+  [
+   "54911555566",
+   "a&b=c?d#e/f+g h%20 ñ 'x' (y) *z* ~w! \n línea 2",
+   null
+  ],
+  [
+   "54911555566",
+   "emoji 🌸 y comillas \"dobles\"",
+   null
+  ],
+  [
+   "54911555566666",
+   "Hola",
+   null
+  ],
+  [
+   "54911555566666",
+   "¡Hola María! Tu reserva está CONFIRMADA. ¡Gracias!",
+   null
+  ],
+  [
+   "54911555566666",
+   "a&b=c?d#e/f+g h%20 ñ 'x' (y) *z* ~w! \n línea 2",
+   null
+  ],
+  [
+   "54911555566666",
+   "emoji 🌸 y comillas \"dobles\"",
+   null
+  ],
+  [
+   "abc",
+   "Hola",
+   null
+  ],
+  [
+   "abc",
+   "¡Hola María! Tu reserva está CONFIRMADA. ¡Gracias!",
+   null
+  ],
+  [
+   "abc",
+   "a&b=c?d#e/f+g h%20 ñ 'x' (y) *z* ~w! \n línea 2",
+   null
+  ],
+  [
+   "abc",
+   "emoji 🌸 y comillas \"dobles\"",
+   null
+  ],
+  [
+   "",
+   "Hola",
+   null
+  ],
+  [
+   "",
+   "¡Hola María! Tu reserva está CONFIRMADA. ¡Gracias!",
+   null
+  ],
+  [
+   "",
+   "a&b=c?d#e/f+g h%20 ñ 'x' (y) *z* ~w! \n línea 2",
+   null
+  ],
+  [
+   "",
+   "emoji 🌸 y comillas \"dobles\"",
+   null
+  ],
+  [
+   "   ",
+   "Hola",
+   null
+  ],
+  [
+   "   ",
+   "¡Hola María! Tu reserva está CONFIRMADA. ¡Gracias!",
+   null
+  ],
+  [
+   "   ",
+   "a&b=c?d#e/f+g h%20 ñ 'x' (y) *z* ~w! \n línea 2",
+   null
+  ],
+  [
+   "   ",
+   "emoji 🌸 y comillas \"dobles\"",
+   null
+  ],
+  [
+   "(0249) 4-31.49.15",
+   "Hola",
+   "https://wa.me/542494314915?text=Hola"
+  ],
+  [
+   "(0249) 4-31.49.15",
+   "¡Hola María! Tu reserva está CONFIRMADA. ¡Gracias!",
+   "https://wa.me/542494314915?text=%C2%A1Hola%20Mar%C3%ADa!%20Tu%20reserva%20est%C3%A1%20CONFIRMADA.%20%C2%A1Gracias!"
+  ],
+  [
+   "(0249) 4-31.49.15",
+   "a&b=c?d#e/f+g h%20 ñ 'x' (y) *z* ~w! \n línea 2",
+   "https://wa.me/542494314915?text=a%26b%3Dc%3Fd%23e%2Ff%2Bg%20h%2520%20%C3%B1%20'x'%20(y)%20*z*%20~w!%20%0A%20l%C3%ADnea%202"
+  ],
+  [
+   "(0249) 4-31.49.15",
+   "emoji 🌸 y comillas \"dobles\"",
+   "https://wa.me/542494314915?text=emoji%20%F0%9F%8C%B8%20y%20comillas%20%22dobles%22"
+  ]
+ ],
+ "messages": [
+  [
+   {
+    "full_name": "María Elena García",
+    "event_title": "Taller de cerámica",
+    "event_starts_at": "2026-11-21 21:00:00",
+    "event_price": "$ 15.000,00",
+    "expires_at": "2026-11-21 21:30:00",
+    "rejection_reason": "El comprobante no se ve bien.",
+    "payment_alias": "casa.de.anton.mp",
+    "effective_status": "pending_no_receipt"
+   },
+   "¡Hola María! Te guardamos el lugar para Taller de cerámica el sábado 21 de noviembre a las 18 hs. Para confirmarlo, transferí $ 15.000,00 al alias casa.de.anton.mp antes del 21 de noviembre de 2026, 18:30. Pasado ese plazo el lugar se libera solo. ¡Cualquier cosa, escribinos!"
+  ],
+  [
+   {
+    "full_name": "María Elena García",
+    "event_title": "Taller de cerámica",
+    "event_starts_at": "2026-11-21 21:00:00",
+    "event_price": "$ 15.000,00",
+    "expires_at": "2026-11-21 21:30:00",
+    "rejection_reason": "El comprobante no se ve bien.",
+    "payment_alias": "casa.de.anton.mp",
+    "effective_status": "pending_review"
+   },
+   "¡Hola María! Ya recibimos tu comprobante para Taller de cerámica. Lo estamos revisando y en breve te confirmamos. ¡Gracias!"
+  ],
+  [
+   {
+    "full_name": "María Elena García",
+    "event_title": "Taller de cerámica",
+    "event_starts_at": "2026-11-21 21:00:00",
+    "event_price": "$ 15.000,00",
+    "expires_at": "2026-11-21 21:30:00",
+    "rejection_reason": "El comprobante no se ve bien.",
+    "payment_alias": "casa.de.anton.mp",
+    "effective_status": "approved"
+   },
+   "¡Hola María! Tu reserva para Taller de cerámica el sábado 21 de noviembre a las 18 hs está CONFIRMADA. Te esperamos. ¡Gracias!"
+  ],
+  [
+   {
+    "full_name": "María Elena García",
+    "event_title": "Taller de cerámica",
+    "event_starts_at": "2026-11-21 21:00:00",
+    "event_price": "$ 15.000,00",
+    "expires_at": "2026-11-21 21:30:00",
+    "rejection_reason": "El comprobante no se ve bien.",
+    "payment_alias": "casa.de.anton.mp",
+    "effective_status": "rejected"
+   },
+   "¡Hola María! No pudimos confirmar tu reserva para Taller de cerámica. El comprobante no se ve bien. Si querés, escribinos y vemos cómo ayudarte."
+  ],
+  [
+   {
+    "full_name": "María Elena García",
+    "event_title": "Taller de cerámica",
+    "event_starts_at": "2026-11-21 21:00:00",
+    "event_price": "$ 15.000,00",
+    "expires_at": "2026-11-21 21:30:00",
+    "rejection_reason": "El comprobante no se ve bien.",
+    "payment_alias": "casa.de.anton.mp",
+    "effective_status": "expired"
+   },
+   "¡Hola María! Se venció el plazo para tu reserva de Taller de cerámica y el lugar se liberó. Si todavía querés venir, avisanos y vemos si quedan lugares."
+  ],
+  [
+   {
+    "full_name": "María Elena García",
+    "event_title": "Taller de cerámica",
+    "event_starts_at": "2026-11-21 21:00:00",
+    "event_price": "$ 15.000,00",
+    "expires_at": "2026-11-21 21:30:00",
+    "rejection_reason": "El comprobante no se ve bien.",
+    "payment_alias": "casa.de.anton.mp",
+    "effective_status": "cancelled"
+   },
+   "¡Hola María! Te escribimos por tu reserva para Taller de cerámica. Si necesitás algo, respondé este mensaje y te ayudamos. ¡Gracias!"
+  ],
+  [
+   {
+    "full_name": "María Elena García",
+    "event_title": "Taller de cerámica",
+    "event_starts_at": "2026-11-21 21:00:00",
+    "event_price": "$ 15.000,00",
+    "expires_at": "2026-11-21 21:30:00",
+    "rejection_reason": "El comprobante no se ve bien.",
+    "payment_alias": "casa.de.anton.mp",
+    "effective_status": "otro"
+   },
+   "¡Hola María! Te escribimos por tu reserva para Taller de cerámica. Si necesitás algo, respondé este mensaje y te ayudamos. ¡Gracias!"
+  ],
+  [
+   {
+    "full_name": "  Ana  ",
+    "event_title": "Té y meditación",
+    "event_starts_at": "2026-03-01 13:30:00",
+    "event_price": "$ 9.500,50",
+    "expires_at": null,
+    "rejection_reason": null,
+    "payment_alias": null,
+    "effective_status": "pending_no_receipt"
+   },
+   "¡Hola Ana! Te guardamos el lugar para Té y meditación el domingo 1 de marzo a las 10:30 hs. Para confirmarlo, transferí $ 9.500,50 al alias que te pasamos por este chat. Pasado ese plazo el lugar se libera solo. ¡Cualquier cosa, escribinos!"
+  ],
+  [
+   {
+    "full_name": "  Ana  ",
+    "event_title": "Té y meditación",
+    "event_starts_at": "2026-03-01 13:30:00",
+    "event_price": "$ 9.500,50",
+    "expires_at": null,
+    "rejection_reason": null,
+    "payment_alias": null,
+    "effective_status": "pending_review"
+   },
+   "¡Hola Ana! Ya recibimos tu comprobante para Té y meditación. Lo estamos revisando y en breve te confirmamos. ¡Gracias!"
+  ],
+  [
+   {
+    "full_name": "  Ana  ",
+    "event_title": "Té y meditación",
+    "event_starts_at": "2026-03-01 13:30:00",
+    "event_price": "$ 9.500,50",
+    "expires_at": null,
+    "rejection_reason": null,
+    "payment_alias": null,
+    "effective_status": "approved"
+   },
+   "¡Hola Ana! Tu reserva para Té y meditación el domingo 1 de marzo a las 10:30 hs está CONFIRMADA. Te esperamos. ¡Gracias!"
+  ],
+  [
+   {
+    "full_name": "  Ana  ",
+    "event_title": "Té y meditación",
+    "event_starts_at": "2026-03-01 13:30:00",
+    "event_price": "$ 9.500,50",
+    "expires_at": null,
+    "rejection_reason": null,
+    "payment_alias": null,
+    "effective_status": "rejected"
+   },
+   "¡Hola Ana! No pudimos confirmar tu reserva para Té y meditación. Si querés, escribinos y vemos cómo ayudarte."
+  ],
+  [
+   {
+    "full_name": "  Ana  ",
+    "event_title": "Té y meditación",
+    "event_starts_at": "2026-03-01 13:30:00",
+    "event_price": "$ 9.500,50",
+    "expires_at": null,
+    "rejection_reason": null,
+    "payment_alias": null,
+    "effective_status": "expired"
+   },
+   "¡Hola Ana! Se venció el plazo para tu reserva de Té y meditación y el lugar se liberó. Si todavía querés venir, avisanos y vemos si quedan lugares."
+  ],
+  [
+   {
+    "full_name": "  Ana  ",
+    "event_title": "Té y meditación",
+    "event_starts_at": "2026-03-01 13:30:00",
+    "event_price": "$ 9.500,50",
+    "expires_at": null,
+    "rejection_reason": null,
+    "payment_alias": null,
+    "effective_status": "cancelled"
+   },
+   "¡Hola Ana! Te escribimos por tu reserva para Té y meditación. Si necesitás algo, respondé este mensaje y te ayudamos. ¡Gracias!"
+  ],
+  [
+   {
+    "full_name": "  Ana  ",
+    "event_title": "Té y meditación",
+    "event_starts_at": "2026-03-01 13:30:00",
+    "event_price": "$ 9.500,50",
+    "expires_at": null,
+    "rejection_reason": null,
+    "payment_alias": null,
+    "effective_status": "otro"
+   },
+   "¡Hola Ana! Te escribimos por tu reserva para Té y meditación. Si necesitás algo, respondé este mensaje y te ayudamos. ¡Gracias!"
+  ],
+  [
+   {
+    "full_name": "José\tLuis",
+    "event_title": "Charla: cocina sin TACC",
+    "event_starts_at": "2026-12-31 23:05:00",
+    "event_price": "$ 1.000,00",
+    "expires_at": "2027-01-01 02:59:00",
+    "rejection_reason": "",
+    "payment_alias": "alias.x",
+    "effective_status": "pending_no_receipt"
+   },
+   "¡Hola José! Te guardamos el lugar para Charla: cocina sin TACC el jueves 31 de diciembre a las 20:05 hs. Para confirmarlo, transferí $ 1.000,00 al alias alias.x antes del 31 de diciembre de 2026, 23:59. Pasado ese plazo el lugar se libera solo. ¡Cualquier cosa, escribinos!"
+  ],
+  [
+   {
+    "full_name": "José\tLuis",
+    "event_title": "Charla: cocina sin TACC",
+    "event_starts_at": "2026-12-31 23:05:00",
+    "event_price": "$ 1.000,00",
+    "expires_at": "2027-01-01 02:59:00",
+    "rejection_reason": "",
+    "payment_alias": "alias.x",
+    "effective_status": "pending_review"
+   },
+   "¡Hola José! Ya recibimos tu comprobante para Charla: cocina sin TACC. Lo estamos revisando y en breve te confirmamos. ¡Gracias!"
+  ],
+  [
+   {
+    "full_name": "José\tLuis",
+    "event_title": "Charla: cocina sin TACC",
+    "event_starts_at": "2026-12-31 23:05:00",
+    "event_price": "$ 1.000,00",
+    "expires_at": "2027-01-01 02:59:00",
+    "rejection_reason": "",
+    "payment_alias": "alias.x",
+    "effective_status": "approved"
+   },
+   "¡Hola José! Tu reserva para Charla: cocina sin TACC el jueves 31 de diciembre a las 20:05 hs está CONFIRMADA. Te esperamos. ¡Gracias!"
+  ],
+  [
+   {
+    "full_name": "José\tLuis",
+    "event_title": "Charla: cocina sin TACC",
+    "event_starts_at": "2026-12-31 23:05:00",
+    "event_price": "$ 1.000,00",
+    "expires_at": "2027-01-01 02:59:00",
+    "rejection_reason": "",
+    "payment_alias": "alias.x",
+    "effective_status": "rejected"
+   },
+   "¡Hola José! No pudimos confirmar tu reserva para Charla: cocina sin TACC. Si querés, escribinos y vemos cómo ayudarte."
+  ],
+  [
+   {
+    "full_name": "José\tLuis",
+    "event_title": "Charla: cocina sin TACC",
+    "event_starts_at": "2026-12-31 23:05:00",
+    "event_price": "$ 1.000,00",
+    "expires_at": "2027-01-01 02:59:00",
+    "rejection_reason": "",
+    "payment_alias": "alias.x",
+    "effective_status": "expired"
+   },
+   "¡Hola José! Se venció el plazo para tu reserva de Charla: cocina sin TACC y el lugar se liberó. Si todavía querés venir, avisanos y vemos si quedan lugares."
+  ],
+  [
+   {
+    "full_name": "José\tLuis",
+    "event_title": "Charla: cocina sin TACC",
+    "event_starts_at": "2026-12-31 23:05:00",
+    "event_price": "$ 1.000,00",
+    "expires_at": "2027-01-01 02:59:00",
+    "rejection_reason": "",
+    "payment_alias": "alias.x",
+    "effective_status": "cancelled"
+   },
+   "¡Hola José! Te escribimos por tu reserva para Charla: cocina sin TACC. Si necesitás algo, respondé este mensaje y te ayudamos. ¡Gracias!"
+  ],
+  [
+   {
+    "full_name": "José\tLuis",
+    "event_title": "Charla: cocina sin TACC",
+    "event_starts_at": "2026-12-31 23:05:00",
+    "event_price": "$ 1.000,00",
+    "expires_at": "2027-01-01 02:59:00",
+    "rejection_reason": "",
+    "payment_alias": "alias.x",
+    "effective_status": "otro"
+   },
+   "¡Hola José! Te escribimos por tu reserva para Charla: cocina sin TACC. Si necesitás algo, respondé este mensaje y te ayudamos. ¡Gracias!"
+  ]
+ ]
+}

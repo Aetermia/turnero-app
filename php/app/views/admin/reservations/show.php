@@ -14,6 +14,16 @@ $isPdf = Receipts::isPdf($r['receipt_mime_type']);
 $receiptUrl = '/admin/reservas/' . $r['id'] . '/comprobante';
 $canResolve = $r['status'] === 'pending_review';
 $reasonError = $errors['rejectionReason'] ?? null;
+$whatsappLink = WhatsApp::deepLink($r['customer_whatsapp'], WhatsApp::reservationMessage([
+    'full_name' => $r['customer_full_name'],
+    'event_title' => $r['event_title'],
+    'event_starts_at' => $r['event_starts_at'],
+    'event_price' => Format::price($r['event_price']),
+    'expires_at' => $r['expires_at'],
+    'rejection_reason' => $r['rejection_reason'],
+    'payment_alias' => Config::paymentAlias(),
+    'effective_status' => $r['effective_status'],
+]));
 
 $timeline = 'Reserva creada el ' . Format::dateTime($r['created_at']) . '.';
 if ($r['resolved_at'] !== null) {
@@ -48,6 +58,16 @@ if ($r['resolved_at'] !== null) {
           ? 'Sí' . ($r['customer_marketing_consent_at'] !== null ? ', autorizó el ' . Format::dateTime($r['customer_marketing_consent_at']) : '')
           : 'No autorizó') ?>
     </dl>
+  </section>
+
+  <section class="<?= $card ?>">
+    <h2 class="font-semibold text-brand-800">Contactar por WhatsApp</h2>
+<?php if ($whatsappLink !== null): ?>
+    <p class="text-sm text-ink-soft">Abre WhatsApp con un mensaje pre-armado según el estado actual de la reserva. Revisalo y editá el texto antes de enviarlo: el envío es manual, nada se manda solo.</p>
+    <a href="<?= e($whatsappLink) ?>" target="_blank" rel="noopener noreferrer" class="inline-flex min-h-12 w-full items-center justify-center rounded-md border border-brand-200 bg-white px-5 font-semibold text-brand-700 transition-colors hover:bg-brand-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 sm:w-auto sm:px-8">Contactar por WhatsApp</a>
+<?php else: ?>
+    <p class="text-sm text-ink-soft">El número <?= e($r['customer_whatsapp']) ?> no tiene un formato que WhatsApp pueda abrir. Corregilo en la ficha de contacto de la persona.</p>
+<?php endif; ?>
   </section>
 
   <section class="<?= $card ?>">
